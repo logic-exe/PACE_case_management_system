@@ -4,8 +4,8 @@ export const Case = {
   async create(data) {
     const query = `
       INSERT INTO cases (case_code, beneficiary_id, case_type, case_title, case_resolution_type, 
-                        court, organizations, status, notes, google_drive_url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        court, organizations, status, notes, google_drive_folder_id, google_drive_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
     const values = [
@@ -18,6 +18,7 @@ export const Case = {
       data.organizations,
       data.status || 'active',
       data.notes,
+      data.google_drive_folder_id,
       data.google_drive_url
     ];
     const result = await pool.query(query, values);
@@ -104,8 +105,8 @@ export const Case = {
       UPDATE cases
       SET beneficiary_id = $1, case_type = $2, case_title = $3, case_resolution_type = $4,
           court = $5, organizations = $6, status = $7, notes = $8, 
-          google_drive_url = $9, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10
+          google_drive_folder_id = $9, google_drive_url = $10, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $11
       RETURNING *
     `;
     const values = [
@@ -117,6 +118,7 @@ export const Case = {
       data.organizations,
       data.status,
       data.notes,
+      data.google_drive_folder_id,
       data.google_drive_url,
       id
     ];

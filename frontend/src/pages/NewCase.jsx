@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { beneficiaryAPI, caseAPI } from '../services/apiService';
+import { useDriveAuth } from '../hooks/useDriveAuth';
 import toast from 'react-hot-toast';
 
 const NewCase = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [createDriveFolder, setCreateDriveFolder] = useState(true);
+  const { driveToken, isConnected, connectGoogleDrive } = useDriveAuth();
   const [formData, setFormData] = useState({
     beneficiary_name: '',
     contact_number: '',
@@ -87,10 +90,10 @@ const NewCase = () => {
         organizations: formData.organizations,
         status: 'active',
         notes: formData.case_notes,
-        google_drive_url: formData.google_drive_url
+        createDriveFolder: createDriveFolder && isConnected
       };
       
-      await caseAPI.create(caseData);
+      await caseAPI.create(caseData, driveToken);
       toast.success('Case created successfully!');
       navigate('/cases');
     } catch (error) {
@@ -388,15 +391,31 @@ const NewCase = () => {
             )}
 
             <div className="form-group" style={{ marginTop: '1.5rem' }}>
-              <label htmlFor="google_drive_url">Google Drive Folder URL (Optional)</label>
-              <input
-                type="url"
-                id="google_drive_url"
-                name="google_drive_url"
-                value={formData.google_drive_url}
-                onChange={handleInputChange}
-                placeholder="https://drive.google.com/..."
-              />
+              <label>
+                <input
+                  type="checkbox"
+                  checked={createDriveFolder}
+                  onChange={(e) => setCreateDriveFolder(e.target.checked)}
+                  disabled={!isConnected}
+                />
+                <span>Auto-create Google Drive folder for this case</span>
+              </label>
+              {!isConnected && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <button 
+                    type="button"
+                    onClick={connectGoogleDrive}
+                    className="btn-connect-drive"
+                  >
+                    🔗 Connect Google Drive
+                  </button>
+                </div>
+              )}
+              {isConnected && (
+                <p style={{ marginTop: '0.5rem', color: '#28a745', fontSize: '0.9rem' }}>
+                  ✓ Google Drive connected
+                </p>
+              )}
             </div>
           </div>
 

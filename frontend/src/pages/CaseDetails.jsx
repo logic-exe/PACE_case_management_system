@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { caseAPI, eventAPI } from '../services/apiService';
+import { useDriveAuth } from '../hooks/useDriveAuth';
+import DocumentUpload from '../components/DocumentUpload';
+import DocumentList from '../components/DocumentList';
 import toast from 'react-hot-toast';
 
 const CaseDetails = () => {
@@ -9,6 +12,8 @@ const CaseDetails = () => {
   const [caseData, setCaseData] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [documentsRefresh, setDocumentsRefresh] = useState(0);
+  const { driveToken, isConnected, connectGoogleDrive } = useDriveAuth();
 
   useEffect(() => {
     fetchCaseDetails();
@@ -146,6 +151,40 @@ const CaseDetails = () => {
             </a>
           )}
         </div>
+      </div>
+
+      {/* Documents Section */}
+      <div className="documents-section">
+        <div className="section-header-with-action">
+          <h2 className="section-header">Documents</h2>
+          {!isConnected && (
+            <button onClick={connectGoogleDrive} className="btn-connect-drive">
+              🔗 Connect Google Drive
+            </button>
+          )}
+        </div>
+
+        {isConnected ? (
+          <>
+            <DocumentUpload 
+              caseId={id} 
+              driveToken={driveToken}
+              onUploadSuccess={() => setDocumentsRefresh(prev => prev + 1)}
+            />
+            <DocumentList 
+              caseId={id} 
+              driveToken={driveToken}
+              refreshTrigger={documentsRefresh}
+            />
+          </>
+        ) : (
+          <div className="empty-state">
+            <p>Connect Google Drive to upload and manage documents</p>
+            <button onClick={connectGoogleDrive} className="btn-primary">
+              Connect Google Drive
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Timeline Section */}

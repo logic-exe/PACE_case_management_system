@@ -9,14 +9,28 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
+    let isMounted = true;
+    checkAuth().then(() => {
+      if (!isMounted) return;
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const checkAuth = async () => {
     try {
       const response = await authAPI.getCurrentUser();
-      setUser(response.data.user);
+      if (response.data && response.data.user) {
+        setUser(response.data.user);
+      } else {
+        setUser(null);
+      }
     } catch (error) {
+      // Not logged in - this is normal, don't log errors for 401
+      if (error.response?.status !== 401 && error.response?.status !== 403) {
+        console.error('Auth check error:', error);
+      }
       setUser(null);
     } finally {
       setLoading(false);
@@ -26,11 +40,17 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await authAPI.login(credentials);
-      setUser(response.data.user);
-      toast.success('Login successful!');
-      return { success: true };
+      if (response.data && response.data.user) {
+        setUser(response.data.user);
+        toast.success('Login successful!');
+        return { success: true };
+      } else {
+        toast.error('Invalid response from server');
+        return { success: false, error: 'Invalid response from server' };
+      }
     } catch (error) {
-      const message = error.response?.data?.error || 'Login failed';
+      console.error('Login error:', error);
+      const message = error.response?.data?.error || error.message || 'Login failed';
       toast.error(message);
       return { success: false, error: message };
     }

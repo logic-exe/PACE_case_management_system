@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import config from '../config/index.js';
+import { getAuthUrl, getTokensFromCode } from '../config/drive.js';
 
 export const login = async (req, res) => {
   try {
@@ -102,5 +103,41 @@ export const getCurrentUser = async (req, res) => {
   } catch (error) {
     console.error('Get current user error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getGoogleAuthUrl = async (req, res) => {
+  try {
+    const authUrl = getAuthUrl();
+    res.json({ authUrl });
+  } catch (error) {
+    console.error('Get Google auth URL error:', error);
+    res.status(500).json({ error: 'Failed to generate auth URL' });
+  }
+};
+
+export const handleGoogleCallback = async (req, res) => {
+  try {
+    const { code } = req.query;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'No authorization code provided' });
+    }
+    
+    const tokens = await getTokensFromCode(code);
+    
+    // Calculate expiry in seconds
+    const expiresIn = tokens.expiry_date 
+      ? Math.floor((tokens.expiry_date - Date.now()) / 1000)
+      : 3600;
+    
+    res.json({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: expiresIn,
+    });
+  } catch (error) {
+    console.error('Google callback error:', error);
+    res.status(500).json({ error: 'Failed to exchange code for tokens' });
   }
 };

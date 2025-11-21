@@ -1,8 +1,20 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useDriveAuth } from '../hooks/useDriveAuth';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { isConnected, connectGoogleDrive, disconnectGoogleDrive } = useDriveAuth();
   const isActive = (path) => location.pathname.startsWith(path);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -30,15 +42,33 @@ const Sidebar = () => {
 
       <div className="sidebar-footer">
         <div className="footer-links">
+          {!isConnected && (
+            <button 
+              className="footer-btn" 
+              type="button"
+              onClick={connectGoogleDrive}
+            >
+              🔗 Connect Drive
+            </button>
+          )}
+          {isConnected && (
+            <button 
+              className="footer-btn" 
+              type="button"
+              onClick={disconnectGoogleDrive}
+            >
+              ✓ Drive Connected
+            </button>
+          )}
           <button className="footer-btn" type="button">⚙️ Settings</button>
           <button className="footer-btn" type="button">❓ Help & Support</button>
-          <button className="footer-btn" type="button">↩️ Logout</button>
+          <button className="footer-btn" type="button" onClick={handleLogout}>↩️ Logout</button>
         </div>
         <div className="user-card">
-          <div className="avatar">A</div>
+          <div className="avatar">{user?.name?.charAt(0) || 'U'}</div>
           <div>
-            <div className="user-name">Adv. Meera Patel</div>
-            <div className="user-email">meera@pace.org</div>
+            <div className="user-name">{user?.name || 'User'}</div>
+            <div className="user-email">{user?.email || 'user@pace.org'}</div>
           </div>
         </div>
       </div>
@@ -47,6 +77,39 @@ const Sidebar = () => {
 };
 
 const Layout = () => {
+  const { loading, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Only redirect once, after loading completes
+    if (!loading && !isAuthenticated) {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && !currentPath.startsWith('/google/callback')) {
+        navigate('/login', { replace: true });
+      }
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render layout if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Redirecting to login...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <Sidebar />

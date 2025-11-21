@@ -5,7 +5,9 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
   logout: () => api.post('/auth/logout'),
-  getCurrentUser: () => api.get('/auth/me')
+  getCurrentUser: () => api.get('/auth/me'),
+  getGoogleAuthUrl: () => api.get('/auth/google/url'),
+  handleGoogleCallback: (code) => api.get(`/auth/google/callback`, { params: { code } })
 };
 
 // Beneficiary API
@@ -23,7 +25,11 @@ export const caseAPI = {
   getOngoing: () => api.get('/cases/ongoing'),
   getWithFilters: (filters) => api.get('/cases/filter', { params: filters }),
   getById: (id) => api.get(`/cases/${id}`),
-  create: (data) => api.post('/cases', data),
+  create: (data, driveToken) => {
+    return api.post('/cases', data, {
+      headers: driveToken ? { 'X-Drive-Access-Token': driveToken } : {}
+    });
+  },
   update: (id, data) => api.put(`/cases/${id}`, data),
   delete: (id) => api.delete(`/cases/${id}`)
 };
@@ -32,7 +38,8 @@ export const caseAPI = {
 export const eventAPI = {
   getUpcoming: (days = 7) => api.get('/events/upcoming', { params: { days } }),
   createEvent: (caseId, data) => api.post(`/events/cases/${caseId}/events`, data),
-  getEventsByCase: (caseId) => api.get(`/events/cases/${caseId}/events`),
+  getByCaseId: (caseId) => api.get(`/events/cases/${caseId}/events`),
+  getEventsByCase: (caseId) => api.get(`/events/cases/${caseId}/events`), // Alias for compatibility
   updateEvent: (eventId, data) => api.put(`/events/${eventId}`, data),
   createReminder: (eventId, data) => api.post(`/events/${eventId}/reminders`, data),
   getUpcomingReminders: () => api.get('/events/reminders/upcoming')
@@ -41,4 +48,29 @@ export const eventAPI = {
 // Dashboard API
 export const dashboardAPI = {
   getStats: () => api.get('/dashboard/stats')
+};
+
+// Document API
+export const documentAPI = {
+  upload: (caseId, formData, driveToken) => {
+    return api.post(`/documents/cases/${caseId}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'X-Drive-Access-Token': driveToken
+      }
+    });
+  },
+  getByCase: (caseId, category) => {
+    const params = category ? { category } : {};
+    return api.get(`/documents/cases/${caseId}`, { params });
+  },
+  getById: (id) => api.get(`/documents/${id}`),
+  update: (id, data) => api.put(`/documents/${id}`, data),
+  delete: (id, driveToken) => {
+    return api.delete(`/documents/${id}`, {
+      headers: {
+        'X-Drive-Access-Token': driveToken
+      }
+    });
+  }
 };

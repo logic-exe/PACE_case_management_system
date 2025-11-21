@@ -1,4 +1,6 @@
 import { Case } from '../models/Case.js';
+import { Beneficiary } from '../models/Beneficiary.js';
+import * as driveService from '../services/driveService.js';
 
 export const getAllCases = async (req, res) => {
   try {
@@ -60,6 +62,27 @@ export const createCase = async (req, res) => {
     const caseCode = await Case.generateCaseCode();
     caseData.case_code = caseCode;
 
+    // Get beneficiary name for folder name
+    const beneficiary = await Beneficiary.findById(caseData.beneficiary_id);
+    if (!beneficiary) {
+      return res.status(404).json({ error: 'Beneficiary not found' });
+    }
+
+    // Create Google Drive folder if access token is provided
+    const driveAccessToken = req.headers['x-drive-access-token'];
+    if (driveAccessToken && req.body.createDriveFolder !== false) {
+      try {
+        const folderName = `${caseCode} - ${beneficiary.name}`;
+        const folder = await driveService.createFolder(driveAccessToken, folderName);
+        
+        caseData.google_drive_folder_id = folder.id;
+        caseData.google_drive_url = folder.url;
+      } catch (error) {
+        console.error('Failed to create Drive folder:', error);
+        // Continue without folder if Drive fails
+      }
+    }
+
     const newCase = await Case.create(caseData);
     res.status(201).json({ 
       message: 'Case created successfully',
@@ -67,7 +90,7 @@ export const createCase = async (req, res) => {
     });
   } catch (error) {
     console.error('Create case error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 };
 

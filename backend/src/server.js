@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes.js';
 import beneficiaryRoutes from './routes/beneficiaryRoutes.js';
 import caseRoutes from './routes/caseRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
 
 const app = express();
 
@@ -17,7 +18,7 @@ app.use(cors({
   origin: config.frontendUrl,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Drive-Access-Token']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/beneficiaries', beneficiaryRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

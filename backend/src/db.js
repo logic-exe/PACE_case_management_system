@@ -68,6 +68,7 @@ export const initDatabase = async () => {
         organizations TEXT[],
         status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'pending', 'urgent', 'resolved')),
         notes TEXT,
+        google_drive_folder_id VARCHAR(255),
         google_drive_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -105,6 +106,23 @@ export const initDatabase = async () => {
       )
     `);
 
+    // Documents table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER REFERENCES cases(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        drive_file_id VARCHAR(255) NOT NULL,
+        drive_url TEXT NOT NULL,
+        download_url TEXT NOT NULL,
+        mime_type VARCHAR(100),
+        size INTEGER,
+        category VARCHAR(50) DEFAULT 'other' CHECK (category IN ('complaint', 'order', 'correspondence', 'evidence', 'other')),
+        uploaded_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Create indexes for better query performance
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_cases_beneficiary ON cases(beneficiary_id);
@@ -112,6 +130,8 @@ export const initDatabase = async () => {
       CREATE INDEX IF NOT EXISTS idx_events_case ON case_events(case_id);
       CREATE INDEX IF NOT EXISTS idx_events_date ON case_events(event_date);
       CREATE INDEX IF NOT EXISTS idx_reminders_event ON reminders(case_event_id);
+      CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);
+      CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
     `);
 
     await client.query('COMMIT');

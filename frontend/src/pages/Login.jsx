@@ -7,14 +7,16 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
+    // Only redirect if authenticated and auth check is complete
+    // Add a check to prevent multiple redirects
+    if (!authLoading && isAuthenticated && window.location.pathname === '/login') {
+      navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, authLoading, navigate]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -37,11 +39,18 @@ const Login = () => {
     if (!validateForm()) return;
 
     setLoading(true);
-    const result = await login({ email, password });
-    setLoading(false);
-
-    if (result.success) {
-      navigate('/dashboard');
+    try {
+      const result = await login({ email, password });
+      if (result && result.success) {
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Login submit error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
