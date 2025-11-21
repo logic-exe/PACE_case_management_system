@@ -96,3 +96,15 @@ Otherwise, create a user through the registration endpoint or directly in the da
 
 Note: Google Drive features will show errors if not configured. All other features work normally.
 
+
+
+
+
+## backend .env file
+<img width="892" height="328" alt="image" src="https://github.com/user-attachments/assets/34538d15-0cc7-4468-b9ae-6bc0e6ecd369" />
+
+
+## frontend .env file
+no .env file needed
+
+
