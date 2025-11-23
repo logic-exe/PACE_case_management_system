@@ -2,7 +2,7 @@ import { Beneficiary } from '../models/Beneficiary.js';
 
 export const getAllBeneficiaries = async (req, res) => {
   try {
-    const beneficiaries = await Beneficiary.getAll();
+    const beneficiaries = await Beneficiary.getAllWithCases();
     res.json({ beneficiaries });
   } catch (error) {
     console.error('Get all beneficiaries error:', error);
@@ -86,6 +86,27 @@ export const deleteBeneficiary = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete beneficiary error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const findBeneficiaryByNameAndPhone = async (req, res) => {
+  try {
+    const { name, phone } = req.query;
+    
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone number are required' });
+    }
+
+    const beneficiary = await Beneficiary.findByNameAndPhone(name, phone);
+    
+    if (beneficiary) {
+      res.json({ beneficiary, exists: true });
+    } else {
+      res.json({ beneficiary: null, exists: false });
+    }
+  } catch (error) {
+    console.error('Find beneficiary error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

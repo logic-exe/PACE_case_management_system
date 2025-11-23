@@ -4,13 +4,15 @@ import {
   getBeneficiaryById,
   createBeneficiary,
   updateBeneficiary,
-  deleteBeneficiary
+  deleteBeneficiary,
+  findBeneficiaryByNameAndPhone
 } from '../controllers/beneficiaryController.js';
 
 const router = express.Router();
 
 // Public routes (authentication disabled)
 router.get('/', getAllBeneficiaries);
+router.get('/find', findBeneficiaryByNameAndPhone);
 router.get('/:id', getBeneficiaryById);
 router.post('/', createBeneficiary);
 router.put('/:id', updateBeneficiary);

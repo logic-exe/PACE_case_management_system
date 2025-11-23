@@ -40,6 +40,22 @@ export const getUpcomingEvents = async (req, res) => {
   }
 };
 
+export const getEventById = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const event = await Event.findById(eventId);
+    
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    res.json({ event });
+  } catch (error) {
+    console.error('Get event by ID error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const updateEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -57,6 +73,26 @@ export const updateEvent = async (req, res) => {
     });
   } catch (error) {
     console.error('Update event error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteEvent = async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    
+    const deletedEvent = await Event.delete(eventId);
+    
+    if (!deletedEvent) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    res.json({ 
+      message: 'Event deleted successfully',
+      event: deletedEvent 
+    });
+  } catch (error) {
+    console.error('Delete event error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

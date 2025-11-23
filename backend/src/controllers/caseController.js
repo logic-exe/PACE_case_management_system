@@ -4,7 +4,8 @@ import * as driveService from '../services/driveService.js';
 
 export const getAllCases = async (req, res) => {
   try {
-    const cases = await Case.getAll();
+    const { dateFilter } = req.query;
+    const cases = await Case.getAll(dateFilter);
     res.json({ cases });
   } catch (error) {
     console.error('Get all cases error:', error);
@@ -14,7 +15,8 @@ export const getAllCases = async (req, res) => {
 
 export const getOngoingCases = async (req, res) => {
   try {
-    const cases = await Case.getOngoing();
+    const { dateFilter } = req.query;
+    const cases = await Case.getOngoing(dateFilter);
     res.json({ cases });
   } catch (error) {
     console.error('Get ongoing cases error:', error);
@@ -68,26 +70,52 @@ export const createCase = async (req, res) => {
       return res.status(404).json({ error: 'Beneficiary not found' });
     }
 
+    // Initialize folder creation variables
+    let folderCreated = false;
+    let folderError = null;
+
     // Create Google Drive folder if access token is provided
     const driveAccessToken = req.headers['x-drive-access-token'];
     if (driveAccessToken && req.body.createDriveFolder !== false) {
       try {
+        console.log('Creating Google Drive folder for case:', caseCode);
         const folderName = `${caseCode} - ${beneficiary.name}`;
         const folder = await driveService.createFolder(driveAccessToken, folderName);
         
         caseData.google_drive_folder_id = folder.id;
         caseData.google_drive_url = folder.url;
+        folderCreated = true;
+        console.log('Google Drive folder created successfully:', folder.id);
       } catch (error) {
         console.error('Failed to create Drive folder:', error);
-        // Continue without folder if Drive fails
+        folderError = error.message;
+        // Don't fail the case creation, but we'll inform the frontend
       }
+    } else if (req.body.createDriveFolder !== false) {
+      // No access token provided but folder creation was requested
+      folderError = 'No Google Drive access token provided';
+      console.log('No Google Drive access token provided for case creation');
     }
 
     const newCase = await Case.create(caseData);
-    res.status(201).json({ 
+    
+    // Prepare response with folder status
+    const response = {
       message: 'Case created successfully',
-      case: newCase 
-    });
+      case: newCase,
+      driveFolder: {
+        created: folderCreated,
+        error: folderError
+      }
+    };
+
+    // If there were files uploaded but no folder was created, inform the frontend
+    if (req.files && req.files.length > 0 && !folderCreated) {
+      response.warning = 'Case folder not created. Documents cannot be uploaded.';
+      response.driveFolder.required = true;
+    }
+
+    res.status(201).json(response);
   } catch (error) {
     console.error('Create case error:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });

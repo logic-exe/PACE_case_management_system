@@ -10,10 +10,19 @@ export const createFolder = async (accessToken, folderName, parentFolderId = nul
     mimeType: 'application/vnd.google-apps.folder',
   };
   
+  // Only set parent folder if explicitly provided and valid
   if (parentFolderId) {
     fileMetadata.parents = [parentFolderId];
   } else if (config.google.rootFolderId) {
-    fileMetadata.parents = [config.google.rootFolderId];
+    // Verify root folder exists before using it
+    try {
+      await drive.files.get({ fileId: config.google.rootFolderId });
+      fileMetadata.parents = [config.google.rootFolderId];
+    } catch (error) {
+      console.warn(`Root folder ${config.google.rootFolderId} not accessible:`, error.message);
+      console.log('Creating folder in Google Drive root instead');
+      // Don't set parents - will create in user's Drive root
+    }
   }
   
   const response = await drive.files.create({

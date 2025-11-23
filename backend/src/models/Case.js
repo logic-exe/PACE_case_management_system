@@ -37,26 +37,86 @@ export const Case = {
     return result.rows[0];
   },
 
-  async getAll() {
-    const query = `
+  async getAll(dateFilter = null) {
+    let query = `
       SELECT c.*, b.name as beneficiary_name
       FROM cases c
       LEFT JOIN beneficiaries b ON c.beneficiary_id = b.id
-      ORDER BY b.name ASC
     `;
-    const result = await pool.query(query);
+    const values = [];
+    let paramCount = 1;
+
+    // Add date filtering if specified
+    if (dateFilter) {
+      const now = new Date();
+      let filterDate;
+      
+      if (dateFilter === '3months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      } else if (dateFilter === '5months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 5, now.getDate());
+      } else if (dateFilter === '6months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      } else if (dateFilter.startsWith('year-')) {
+        // Year-wise filter: year-2024, year-2025, etc.
+        const year = parseInt(dateFilter.split('-')[1]);
+        query += ` WHERE EXTRACT(YEAR FROM c.created_at) = $${paramCount}`;
+        values.push(year);
+        paramCount++;
+      }
+      
+      if (filterDate && !dateFilter.startsWith('year-')) {
+        query += ` WHERE c.created_at >= $${paramCount}`;
+        values.push(filterDate.toISOString());
+        paramCount++;
+      }
+    }
+
+    query += ' ORDER BY c.created_at DESC';
+    
+    const result = await pool.query(query, values);
     return result.rows;
   },
 
-  async getOngoing() {
-    const query = `
+  async getOngoing(dateFilter = null) {
+    let query = `
       SELECT c.*, b.name as beneficiary_name
       FROM cases c
       LEFT JOIN beneficiaries b ON c.beneficiary_id = b.id
-      WHERE c.status IN ('active', 'pending')
-      ORDER BY b.name ASC
+      WHERE c.status IN ('active', 'pending', 'urgent')
     `;
-    const result = await pool.query(query);
+    const values = [];
+    let paramCount = 1;
+
+    // Add date filtering if specified
+    if (dateFilter) {
+      const now = new Date();
+      let filterDate;
+      
+      if (dateFilter === '3months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      } else if (dateFilter === '5months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 5, now.getDate());
+      } else if (dateFilter === '6months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      } else if (dateFilter.startsWith('year-')) {
+        // Year-wise filter: year-2024, year-2025, etc.
+        const year = parseInt(dateFilter.split('-')[1]);
+        query += ` AND EXTRACT(YEAR FROM c.created_at) = $${paramCount}`;
+        values.push(year);
+        paramCount++;
+      }
+      
+      if (filterDate && !dateFilter.startsWith('year-')) {
+        query += ` AND c.created_at >= $${paramCount}`;
+        values.push(filterDate.toISOString());
+        paramCount++;
+      }
+    }
+
+    query += ' ORDER BY c.created_at DESC';
+    
+    const result = await pool.query(query, values);
     return result.rows;
   },
 
@@ -69,6 +129,32 @@ export const Case = {
     `;
     const values = [];
     let paramCount = 1;
+
+    // Add date filtering if specified
+    if (filters.dateFilter) {
+      const now = new Date();
+      let filterDate;
+      
+      if (filters.dateFilter === '3months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      } else if (filters.dateFilter === '5months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 5, now.getDate());
+      } else if (filters.dateFilter === '6months') {
+        filterDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      } else if (filters.dateFilter.startsWith('year-')) {
+        // Year-wise filter: year-2024, year-2025, etc.
+        const year = parseInt(filters.dateFilter.split('-')[1]);
+        query += ` AND EXTRACT(YEAR FROM c.created_at) = $${paramCount}`;
+        values.push(year);
+        paramCount++;
+      }
+      
+      if (filterDate && !filters.dateFilter.startsWith('year-')) {
+        query += ` AND c.created_at >= $${paramCount}`;
+        values.push(filterDate.toISOString());
+        paramCount++;
+      }
+    }
 
     if (filters.case_type) {
       query += ` AND c.case_type = $${paramCount}`;
@@ -94,7 +180,7 @@ export const Case = {
       paramCount++;
     }
 
-    query += ' ORDER BY b.name ASC';
+    query += ' ORDER BY c.created_at DESC';
 
     const result = await pool.query(query, values);
     return result.rows;
