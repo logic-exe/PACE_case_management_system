@@ -1048,6 +1048,43 @@ body {
   transform: translateY(-4px);
 }
 
+/* ====================================
+   Beneficiary Card Action Buttons
+   ==================================== */
+.card-action-buttons {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.beneficiary-card:hover .card-action-buttons {
+  opacity: 1;
+}
+
+.card-action-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  line-height: 1;
+}
+
+.card-action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.card-action-btn.edit-btn:hover {
+  background-color: rgba(255, 193, 7, 0.2);
+}
+
+.card-action-btn.delete-btn:hover {
+  background-color: rgba(220, 53, 69, 0.2);
+}
+
 .beneficiary-header {
   display: flex;
   justify-content: space-between;
@@ -1056,8 +1093,8 @@ body {
 }
 
 .beneficiary-header h3 {
-  color: var (--text-primary);
-  font-size: 1.2rem;
+  flex: 1;
+  margin: 0;
 }
 
 .beneficiary-tags {
@@ -1567,7 +1604,7 @@ body {
 .selected-case-info {
   padding: 1.5rem;
   background: var(--bg-secondary);
-  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  border-radius: var(--border-radius);
   border-bottom: 2px solid var(--primary-color);
 }
 
@@ -1928,6 +1965,47 @@ body {
   border: 1px solid var(--border-color);
 }
 
+/* Timeline action buttons */
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.timeline-actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.timeline-item:hover .timeline-actions {
+  opacity: 1;
+}
+
+.timeline-action-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.timeline-action-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.timeline-action-btn.edit-btn:hover {
+  background-color: rgba(255, 193, 7, 0.2);
+}
+
+.timeline-action-btn.delete-btn:hover {
+  background-color: rgba(220, 53, 69, 0.2);
+}
+
 /* ====================================
    Beneficiary Cases List
    ==================================== */
@@ -2089,6 +2167,35 @@ body {
   border-top: 1px solid var(--border-color);
   font-size: 0.85rem;
   color: var(--text-light);
+}
+
+/* Beneficiary modal button styles */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
+  margin: 0 5px;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.btn-warning:hover {
+  background-color: #ffb300;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
 }
 
 /* ====================================

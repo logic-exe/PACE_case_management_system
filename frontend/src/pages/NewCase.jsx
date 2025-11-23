@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { beneficiaryAPI, caseAPI, documentAPI } from '../services/apiService';
 import { useDriveAuth } from '../hooks/useDriveAuth';
 import toast from 'react-hot-toast';
+import { MdPerson, MdGavel, MdPhone, MdAttachFile, MdLink, MdCheckCircle, MdClose } from 'react-icons/md';
 
 const NewCase = () => {
   const navigate = useNavigate();
@@ -28,8 +29,28 @@ const NewCase = () => {
     google_drive_url: ''
   });
 
+  useEffect(() => {
+    const prefillData = sessionStorage.getItem('prefillBeneficiaryData');
+    if (prefillData) {
+      try {
+        const beneficiaryData = JSON.parse(prefillData);
+        setFormData(prev => ({ ...prev, ...beneficiaryData }));
+        sessionStorage.removeItem('prefillBeneficiaryData');
+        toast.success(`Form pre-filled with ${beneficiaryData.beneficiary_name}'s information`);
+      } catch (error) {
+        console.error('Error parsing prefill data:', error);
+      }
+    }
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'contact_number') {
+      const cleanNumber = value.replace(/\D/g, '');
+      const limitedNumber = cleanNumber.slice(0, 10);
+      setFormData(prev => ({ ...prev, [name]: limitedNumber }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -59,30 +80,39 @@ const NewCase = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!formData.beneficiary_name || !formData.contact_number || !formData.case_type || !formData.case_title) {
       toast.error('Please fill all required fields');
       return;
     }
-
+    if (formData.contact_number.length !== 10) {
+      toast.error('Please enter exactly 10 digits for phone number');
+      return;
+    }
     setLoading(true);
     try {
-      // First create beneficiary
-      const beneficiaryData = {
-        name: formData.beneficiary_name,
-        contact_number: formData.contact_number,
-        email: formData.email,
-        address: formData.address,
-        has_smartphone: formData.has_smartphone === 'yes',
-        can_read: formData.can_read === 'yes',
-        date_of_filing: new Date().toISOString().split('T')[0]
-      };
-      
-      const beneficiaryRes = await beneficiaryAPI.create(beneficiaryData);
-      
-      // Then create case
+      let beneficiaryId;
+      const existingBeneficiaryRes = await beneficiaryAPI.findByNameAndPhone(
+        formData.beneficiary_name,
+        formData.contact_number
+      );
+      if (existingBeneficiaryRes.data.exists) {
+        beneficiaryId = existingBeneficiaryRes.data.beneficiary.id;
+        toast.success(`Found existing beneficiary: ${formData.beneficiary_name}. Adding case to their profile.`);
+      } else {
+        const beneficiaryData = {
+          name: formData.beneficiary_name,
+          contact_number: formData.contact_number,
+          email: formData.email,
+          address: formData.address,
+          has_smartphone: formData.has_smartphone === 'yes',
+          can_read: formData.can_read === 'yes',
+          date_of_filing: new Date().toISOString().split('T')[0]
+        };
+        const beneficiaryRes = await beneficiaryAPI.create(beneficiaryData);
+        beneficiaryId = beneficiaryRes.data.beneficiary.id;
+      }
       const caseData = {
-        beneficiary_id: beneficiaryRes.data.beneficiary.id,
+        beneficiary_id: beneficiaryId,
         case_type: formData.case_type === 'Other' ? formData.case_type_other : formData.case_type,
         case_title: formData.case_title,
         case_resolution_type: formData.case_resolution_type,
@@ -92,25 +122,26 @@ const NewCase = () => {
         notes: formData.case_notes,
         createDriveFolder: createDriveFolder && isConnected
       };
-      
       const caseRes = await caseAPI.create(caseData, driveToken);
       const newCaseId = caseRes.data.case.id;
-      
-      // Upload documents if any files were selected and Drive is connected
-      if (uploadedFiles.length > 0 && isConnected && driveToken) {
-        if (!caseRes.data.case.google_drive_folder_id) {
-          toast.error('Case folder not created. Documents cannot be uploaded.');
+      const driveFolder = caseRes.data.driveFolder;
+      if (uploadedFiles.length > 0) {
+        if (!isConnected || !driveToken) {
+          toast.error('Google Drive not connected. Documents cannot be uploaded.');
+          toast.success('Case created successfully, but documents were not uploaded.');
+        } else if (!driveFolder?.created) {
+          const errorMsg = driveFolder?.error || 'Unknown error creating folder';
+          toast.error(`Case folder creation failed: ${errorMsg}. Documents cannot be uploaded.`);
+          toast.success('Case created successfully, but documents were not uploaded.');
         } else {
           let uploadCount = 0;
           let failCount = 0;
-          
           for (const file of uploadedFiles) {
             try {
               const formData = new FormData();
               formData.append('file', file);
               formData.append('category', 'other');
               formData.append('fileName', file.name);
-              
               await documentAPI.upload(newCaseId, formData, driveToken);
               uploadCount++;
             } catch (error) {
@@ -118,21 +149,32 @@ const NewCase = () => {
               failCount++;
             }
           }
-          
           if (uploadCount > 0) {
-            toast.success(`Case created! ${uploadCount} document(s) uploaded successfully.`);
+            toast.success(`Case created successfully! ${uploadCount} document(s) uploaded.`);
           }
           if (failCount > 0) {
             toast.error(`${failCount} document(s) failed to upload.`);
           }
+          if (uploadCount === 0 && failCount > 0) {
+            toast.error('Case created but all document uploads failed.');
+          }
         }
       } else {
-        toast.success('Case created successfully!');
+        if (driveFolder?.created) {
+          toast.success('Case created successfully with Google Drive folder!');
+        } else if (driveFolder?.error && createDriveFolder) {
+          toast.success('Case created successfully, but Google Drive folder creation failed.');
+        } else {
+          toast.success('Case created successfully!');
+        }
       }
-      
       navigate('/cases');
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to create case');
+      if (error.response?.data?.error) {
+        toast.error(`Failed to create case: ${error.response.data.error}`);
+      } else {
+        toast.error(error.response?.data?.error || error.message || 'Failed to create case');
+      }
     } finally {
       setLoading(false);
     }
@@ -152,13 +194,11 @@ const NewCase = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="case-form-new">
-          {/* Beneficiary Information Section */}
           <div className="form-section-card">
             <div className="section-header-icon">
-              <span className="icon">📋</span>
+              <span className="icon"><MdPerson /></span>
               <h2>Beneficiary Information</h2>
             </div>
-            
             <div className="form-grid-2">
               <div className="form-group">
                 <label htmlFor="beneficiary_name">
@@ -174,7 +214,6 @@ const NewCase = () => {
                   required
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="contact_number">
                   Contact Number <span className="required">*</span>
@@ -185,12 +224,18 @@ const NewCase = () => {
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleInputChange}
-                  placeholder="+91 XXXXX XXXXX"
+                  placeholder="Enter 10-digit mobile number"
+                  maxLength="10"
+                  pattern="[0-9]{10}"
                   required
                 />
+                {formData.contact_number && formData.contact_number.length !== 10 && (
+                  <small style={{ color: 'red', fontSize: '0.8rem' }}>
+                    Please enter exactly 10 digits
+                  </small>
+                )}
               </div>
             </div>
-
             <div className="form-grid-2">
               <div className="form-group">
                 <label htmlFor="email">Email Address (Optional)</label>
@@ -203,7 +248,6 @@ const NewCase = () => {
                   placeholder="beneficiary@example.com"
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="address">Address</label>
                 <input
@@ -218,13 +262,11 @@ const NewCase = () => {
             </div>
           </div>
 
-          {/* Case Details Section */}
           <div className="form-section-card">
             <div className="section-header-icon">
-              <span className="icon">⚖️</span>
+              <span className="icon"><MdGavel /></span>
               <h2>Case Details</h2>
             </div>
-
             <div className="form-group">
               <label htmlFor="case_type">
                 Case Type <span className="required">*</span>
@@ -247,7 +289,6 @@ const NewCase = () => {
                 <option value="Other">Other</option>
               </select>
             </div>
-
             <div className="form-group">
               <label htmlFor="case_title">
                 Case Title/Description <span className="required">*</span>
@@ -262,7 +303,6 @@ const NewCase = () => {
                 required
               />
             </div>
-
             <div className="form-grid-2">
               <div className="form-group">
                 <label htmlFor="case_resolution_type">
@@ -283,7 +323,6 @@ const NewCase = () => {
                   <option value="Counseling">Counseling</option>
                 </select>
               </div>
-
               <div className="form-group">
                 <label htmlFor="court">Specific Court (if applicable)</label>
                 <select
@@ -302,7 +341,6 @@ const NewCase = () => {
                 </select>
               </div>
             </div>
-
             <div className="form-group">
               <label>Organizations Involved</label>
               <div className="checkbox-grid">
@@ -325,7 +363,6 @@ const NewCase = () => {
                 ))}
               </div>
             </div>
-
             <div className="form-group">
               <label htmlFor="case_notes">Case Notes/Background</label>
               <textarea
@@ -339,13 +376,11 @@ const NewCase = () => {
             </div>
           </div>
 
-          {/* Beneficiary Communication Preferences Section */}
           <div className="form-section-card">
             <div className="section-header-icon">
-              <span className="icon">📱</span>
+              <span className="icon"><MdPhone /></span>
               <h2>Beneficiary Communication Preferences</h2>
             </div>
-
             <div className="form-grid-2">
               <div className="form-group">
                 <label htmlFor="has_smartphone">
@@ -363,7 +398,6 @@ const NewCase = () => {
                   <option value="no">No</option>
                 </select>
               </div>
-
               <div className="form-group">
                 <label htmlFor="can_read">
                   Can Read? <span className="required">*</span>
@@ -383,13 +417,11 @@ const NewCase = () => {
             </div>
           </div>
 
-          {/* Initial Documents Section */}
           <div className="form-section-card">
             <div className="section-header-icon">
-              <span className="icon">📎</span>
+              <span className="icon"><MdAttachFile /></span>
               <h2>Initial Documents</h2>
             </div>
-
             <div
               className="file-drop-zone"
               onDrop={handleFileDrop}
@@ -407,24 +439,22 @@ const NewCase = () => {
               <p className="drop-text">Drag & Drop Files Here</p>
               <p className="drop-subtext">or click to browse</p>
             </div>
-
             {uploadedFiles.length > 0 && (
               <div className="uploaded-files-list">
                 {uploadedFiles.map((file, index) => (
                   <div key={index} className="file-item">
-                    <span className="file-name">📄 {file.name}</span>
+                    <span className="file-name"><MdAttachFile style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {file.name}</span>
                     <button
                       type="button"
                       onClick={() => removeFile(index)}
                       className="file-remove"
                     >
-                      ×
+                      <MdClose />
                     </button>
                   </div>
                 ))}
               </div>
             )}
-
             <div className="form-group" style={{ marginTop: '1.5rem' }}>
               <label>
                 <input
@@ -442,19 +472,18 @@ const NewCase = () => {
                     onClick={connectGoogleDrive}
                     className="btn-connect-drive"
                   >
-                    🔗 Connect Google Drive
+                    <MdLink /> Connect Google Drive
                   </button>
                 </div>
               )}
               {isConnected && (
                 <p style={{ marginTop: '0.5rem', color: '#28a745', fontSize: '0.9rem' }}>
-                  ✓ Google Drive connected
+                  <MdCheckCircle style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Google Drive connected
                 </p>
               )}
             </div>
           </div>
 
-          {/* Form Actions */}
           <div className="form-actions-new">
             <button type="button" onClick={() => navigate('/cases')} className="btn-cancel">
               Cancel

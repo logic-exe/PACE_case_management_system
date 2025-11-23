@@ -5,6 +5,7 @@ import { useDriveAuth } from '../hooks/useDriveAuth';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentList from '../components/DocumentList';
 import toast from 'react-hot-toast';
+import { MdEdit, MdDelete, MdCalendarToday, MdAccessTime, MdLocationOn, MdDescription, MdFolder, MdCheckCircle, MdPerson, MdLink, MdNote } from 'react-icons/md';
 
 const CaseDetails = () => {
   const { id } = useParams();
@@ -39,6 +40,22 @@ const CaseDetails = () => {
     } catch (error) {
       console.error('Failed to load case events');
     }
+  };
+
+  const deleteEvent = async (eventId) => {
+    if (window.confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      try {
+        await eventAPI.deleteEvent(eventId);
+        toast.success('Event deleted successfully');
+        fetchCaseEvents(); // Refresh events
+      } catch (error) {
+        toast.error('Failed to delete event');
+      }
+    }
+  };
+
+  const editEvent = (eventId) => {
+    navigate(`/edit-event/${eventId}?caseId=${id}`);
   };
 
   const formatDate = (dateStr) => {
@@ -101,7 +118,7 @@ const CaseDetails = () => {
         <div className="case-title-row">
           <div className="case-title-left">
             <h1 className="case-code-title">{caseData.case_code}</h1>
-            <p className="case-beneficiary-name">👤 {caseData.beneficiary_name}</p>
+            <p className="case-beneficiary-name"><MdPerson style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {caseData.beneficiary_name}</p>
             <span className="case-type-badge">{caseData.case_type}</span>
           </div>
           <div className="case-meta-right">
@@ -109,7 +126,7 @@ const CaseDetails = () => {
             <p><strong>Court:</strong> {caseData.court}</p>
             <p><strong>Resolution Type:</strong> {caseData.case_resolution_type}</p>
             <div className="next-court-date">
-              📅 Next Hearing: 20 Nov 2025
+              <MdCalendarToday style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Next Hearing: 20 Nov 2025
             </div>
           </div>
         </div>
@@ -147,7 +164,7 @@ const CaseDetails = () => {
               rel="noopener noreferrer"
               className="btn-open-drive"
             >
-              📁 Open Drive Folder
+              <MdFolder style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Open Drive Folder
             </a>
           )}
         </div>
@@ -159,7 +176,7 @@ const CaseDetails = () => {
           <h2 className="section-header">Documents</h2>
           {!isConnected && (
             <button onClick={connectGoogleDrive} className="btn-connect-drive">
-              🔗 Connect Google Drive
+              <MdLink style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Connect Google Drive
             </button>
           )}
         </div>
@@ -203,31 +220,53 @@ const CaseDetails = () => {
             {events.map((event) => (
               <div key={event.id} className="timeline-item">
                 <div className={`timeline-marker ${event.status === 'completed' ? 'completed' : ''}`}>
-                  ✓
+                  <MdCheckCircle style={{ fontSize: '0.75rem' }} />
                 </div>
                 <div className={`timeline-content ${event.status === 'completed' ? 'completed' : ''}`}>
-                  <div className="timeline-date">
-                    📅 {formatDate(event.event_date)} {event.event_time && `• 🕐 ${event.event_time}`}
+                  <div className="timeline-header">
+                    <div className="timeline-date">
+                      <MdCalendarToday style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {formatDate(event.event_date)} {event.event_time && <><MdAccessTime style={{ verticalAlign: 'middle', marginLeft: '8px', marginRight: '4px' }} /> {event.event_time}</>}
+                    </div>
+                    <div className="timeline-actions">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          editEvent(event.id);
+                        }}
+                        className="timeline-action-btn edit-btn"
+                        title="Edit Event"
+                      >
+                        <MdEdit />
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteEvent(event.id);
+                        }}
+                        className="timeline-action-btn delete-btn"
+                        title="Delete Event"
+                      >
+                        <MdDelete />
+                      </button>
+                    </div>
                   </div>
                   <h3 className="timeline-title">{event.event_title}</h3>
                   <p className="timeline-description">{event.description || 'No description provided'}</p>
                   
-                  <div className="timeline-meta">
-                    {event.location && (
-                      <div className="timeline-meta-item">
-                        📍 {event.location}
-                      </div>
-                    )}
-                    {event.event_type && (
-                      <div className="timeline-meta-item">
-                        📋 {event.event_type}
-                      </div>
-                    )}
-                  </div>
+                  {event.location && (
+                    <div className="timeline-meta-item">
+                      <MdLocationOn style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.location}
+                    </div>
+                  )}
+                  {event.event_type && (
+                    <div className="timeline-meta-item">
+                      <MdDescription style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.event_type}
+                    </div>
+                  )}
 
                   {event.notes && (
                     <div className="timeline-note">
-                      <strong>📝 Note:</strong> {event.notes}
+                      <strong><MdNote style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Note:</strong> {event.notes}
                     </div>
                   )}
 

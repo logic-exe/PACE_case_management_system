@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDriveAuth } from '../hooks/useDriveAuth';
+import { MdDashboard, MdFolder, MdPeople, MdLink, MdCheckCircle, MdLogout } from 'react-icons/md';
 
 const Sidebar = () => {
   const location = useLocation();
@@ -27,15 +28,15 @@ const Sidebar = () => {
 
       <nav className="nav-group">
         <NavLink to="/dashboard" className={({isActive: active}) => `nav-item ${active ? 'active' : ''}`}>
-          <span className="nav-icon">🏠</span>
+          <span className="nav-icon"><MdDashboard /></span>
           <span>Dashboard</span>
         </NavLink>
         <NavLink to="/cases" className={({isActive: active}) => `nav-item ${active || isActive('/cases') ? 'active' : ''}`}>
-          <span className="nav-icon">📁</span>
+          <span className="nav-icon"><MdFolder /></span>
           <span>All Cases</span>
         </NavLink>
         <NavLink to="/beneficiaries" className={({isActive: active}) => `nav-item ${active ? 'active' : ''}`}>
-          <span className="nav-icon">👤</span>
+          <span className="nav-icon"><MdPeople /></span>
           <span>Beneficiaries</span>
         </NavLink>
       </nav>
@@ -48,7 +49,7 @@ const Sidebar = () => {
               type="button"
               onClick={connectGoogleDrive}
             >
-              🔗 Connect Drive
+              <MdLink /> Connect Drive
             </button>
           )}
           {isConnected && (
@@ -57,12 +58,12 @@ const Sidebar = () => {
               type="button"
               onClick={disconnectGoogleDrive}
             >
-              ✓ Drive Connected
+              <MdCheckCircle /> Drive Connected
             </button>
           )}
-          <button className="footer-btn" type="button">⚙️ Settings</button>
-          <button className="footer-btn" type="button">❓ Help & Support</button>
-          <button className="footer-btn" type="button" onClick={handleLogout}>↩️ Logout</button>
+          <button className="footer-btn" type="button" onClick={handleLogout}>
+            <MdLogout /> Logout
+          </button>
         </div>
         <div className="user-card">
           <div className="avatar">{user?.name?.charAt(0) || 'U'}</div>

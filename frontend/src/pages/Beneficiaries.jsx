@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { beneficiaryAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdEdit, MdDelete, MdPhone, MdEmail, MdLocationOn, MdCalendarToday, MdPhoneAndroid, MdMenuBook } from 'react-icons/md';
 
 const Beneficiaries = () => {
   const navigate = useNavigate();
@@ -25,6 +26,24 @@ const Beneficiaries = () => {
     }
   };
 
+  const deleteBeneficiary = async (beneficiaryId, beneficiaryName) => {
+    if (window.confirm(`Are you sure you want to delete ${beneficiaryName}? This will also delete all associated cases and cannot be undone.`)) {
+      try {
+        await beneficiaryAPI.delete(beneficiaryId);
+        toast.success('Beneficiary deleted successfully');
+        fetchBeneficiaries(); // Refresh the list
+        setShowModal(false); // Close modal if open
+      } catch (error) {
+        toast.error('Failed to delete beneficiary');
+      }
+    }
+  };
+
+  const editBeneficiary = (beneficiaryId) => {
+    setShowModal(false);
+    navigate(`/edit-beneficiary/${beneficiaryId}`);
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -34,24 +53,33 @@ const Beneficiaries = () => {
     });
   };
 
-  const viewBeneficiary = async (id) => {
-    try {
-      const response = await beneficiaryAPI.getById(id);
-      setSelectedBeneficiary(response.data);
-      setShowModal(true);
-    } catch (error) {
-      toast.error('Failed to load beneficiary details');
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return 'N/A';
+    // Format 10-digit number as XXXXX XXXXX
+    if (phone.length === 10) {
+      return `${phone.slice(0, 5)} ${phone.slice(5)}`;
     }
+    return phone;
+  };
+
+  const viewBeneficiary = (beneficiary) => {
+    setSelectedBeneficiary(beneficiary);
+    setShowModal(true);
   };
 
   const getStatusBadgeClass = (status) => {
     const statusClasses = {
       active: 'badge-active',
-      pending: 'badge-pending',
+      pending: 'badge-pending', 
       urgent: 'badge-urgent',
       resolved: 'badge-resolved'
     };
     return statusClasses[status] || 'badge-default';
+  };
+
+  const navigateToCase = (caseId) => {
+    setShowModal(false);
+    navigate(`/cases/${caseId}`);
   };
 
   if (loading) {
@@ -80,25 +108,58 @@ const Beneficiaries = () => {
             <div 
               key={beneficiary.id} 
               className="beneficiary-card clickable-card"
-              onClick={() => viewBeneficiary(beneficiary.id)}
+              onClick={() => viewBeneficiary(beneficiary)}
             >
               <div className="beneficiary-header">
                 <h3>{beneficiary.name}</h3>
-                <div className="beneficiary-tags">
-                  {beneficiary.has_smartphone && (
-                    <span className="tag tag-smartphone">📱 Smartphone</span>
-                  )}
-                  {beneficiary.can_read && (
-                    <span className="tag tag-literate">📖 Can Read</span>
-                  )}
+                <div className="card-action-buttons">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editBeneficiary(beneficiary.id);
+                    }}
+                    className="card-action-btn edit-btn"
+                    title="Edit Beneficiary"
+                  >
+                    <MdEdit />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteBeneficiary(beneficiary.id, beneficiary.name);
+                    }}
+                    className="card-action-btn delete-btn"
+                    title="Delete Beneficiary"
+                  >
+                    <MdDelete />
+                  </button>
                 </div>
               </div>
               
+              <div className="beneficiary-tags">
+                {beneficiary.has_smartphone && (
+                  <span className="tag tag-smartphone"><MdPhoneAndroid /> Smartphone</span>
+                )}
+                {beneficiary.can_read && (
+                  <span className="tag tag-literate"><MdMenuBook /> Can Read</span>
+                )}
+              </div>
+              
               <div className="beneficiary-info">
-                <p><strong>Contact:</strong> {beneficiary.contact_number || 'N/A'}</p>
+                <p><strong>Contact:</strong> {formatPhoneNumber(beneficiary.contact_number)}</p>
                 <p><strong>Email:</strong> {beneficiary.email || 'N/A'}</p>
                 <p><strong>Date of Filing:</strong> {formatDate(beneficiary.date_of_filing)}</p>
                 <p><strong>Address:</strong> {beneficiary.address || 'N/A'}</p>
+                
+                {/* Show case count */}
+                <div className="beneficiary-cases-summary" style={{ marginTop: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  <strong>Cases: {beneficiary.cases.length}</strong>
+                  {beneficiary.cases.length > 0 && (
+                    <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '4px' }}>
+                      {beneficiary.cases.map(c => c.case_code).join(', ')}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -108,22 +169,23 @@ const Beneficiaries = () => {
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>{selectedBeneficiary.beneficiary.name}</h2>
+                <h2>{selectedBeneficiary.name}</h2>
                 <button onClick={() => setShowModal(false)} className="modal-close">×</button>
               </div>
               
               <div className="modal-body">
                 <div className="detail-section">
                   <h3>Contact Information</h3>
-                  <p><strong>Phone:</strong> {selectedBeneficiary.beneficiary.contact_number}</p>
-                  <p><strong>Email:</strong> {selectedBeneficiary.beneficiary.email || 'N/A'}</p>
-                  <p><strong>Address:</strong> {selectedBeneficiary.beneficiary.address}</p>
+                  <p><MdPhone style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Phone:</strong> {formatPhoneNumber(selectedBeneficiary.contact_number)}</p>
+                  <p><MdEmail style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Email:</strong> {selectedBeneficiary.email || 'N/A'}</p>
+                  <p><MdLocationOn style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Address:</strong> {selectedBeneficiary.address || 'N/A'}</p>
                 </div>
 
                 <div className="detail-section">
                   <h3>Communication Preferences</h3>
-                  <p><strong>Has Smartphone:</strong> {selectedBeneficiary.beneficiary.has_smartphone ? 'Yes' : 'No'}</p>
-                  <p><strong>Can Read:</strong> {selectedBeneficiary.beneficiary.can_read ? 'Yes' : 'No'}</p>
+                  <p><strong>Has Smartphone:</strong> {selectedBeneficiary.has_smartphone ? 'Yes' : 'No'}</p>
+                  <p><strong>Can Read:</strong> {selectedBeneficiary.can_read ? 'Yes' : 'No'}</p>
+                  <p><MdCalendarToday style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Date of Filing:</strong> {formatDate(selectedBeneficiary.date_of_filing)}</p>
                 </div>
 
                 <div className="detail-section">
@@ -138,26 +200,70 @@ const Beneficiaries = () => {
                           className="case-item-card clickable-card"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setShowModal(false);
-                            navigate(`/cases/${caseItem.id}`);
+                            navigateToCase(caseItem.id);
                           }}
+                          style={{ 
+                            border: '1px solid #e0e0e0', 
+                            borderRadius: '8px', 
+                            padding: '12px', 
+                            marginBottom: '8px',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
                         >
-                          <div className="case-item-header">
-                            <strong>{caseItem.case_code}</strong>
+                          <div className="case-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ color: '#2c5aa0' }}>{caseItem.case_code}</strong>
                             <span className={`badge ${getStatusBadgeClass(caseItem.status)}`}>
                               {caseItem.status}
                             </span>
                           </div>
-                          <p className="case-item-type">{caseItem.case_type}</p>
-                          <p className="case-item-title">{caseItem.case_title}</p>
-                          <div className="case-item-meta">
-                            <span>📅 {formatDate(caseItem.created_at)}</span>
-                            <span>⚖️ {caseItem.court}</span>
+                          <p className="case-item-type" style={{ margin: '4px 0', fontWeight: '500', color: '#555' }}>
+                            {caseItem.case_type}
+                          </p>
+                          <p className="case-item-title" style={{ margin: '4px 0', fontSize: '0.9rem', color: '#777' }}>
+                            {caseItem.case_title}
+                          </p>
+                          <div className="case-item-meta" style={{ fontSize: '0.8rem', color: '#999', marginTop: '8px' }}>
+                            <span style={{ marginRight: '15px' }}>📅 {formatDate(caseItem.created_at)}</span>
+                            {caseItem.court && <span>⚖️ {caseItem.court}</span>}
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: '20px', textAlign: 'center' }}>
+                  <button 
+                    onClick={() => {
+                      // Pre-fill the form with beneficiary data and navigate to new case
+                      const beneficiaryData = {
+                        beneficiary_name: selectedBeneficiary.name,
+                        contact_number: selectedBeneficiary.contact_number?.replace(/\D/g, '').slice(-10) || '',
+                        email: selectedBeneficiary.email || '',
+                        address: selectedBeneficiary.address || '',
+                        has_smartphone: selectedBeneficiary.has_smartphone ? 'yes' : 'no',
+                        can_read: selectedBeneficiary.can_read ? 'yes' : 'no'
+                      };
+                      
+                      // Store beneficiary data in sessionStorage for the NewCase form
+                      sessionStorage.setItem('prefillBeneficiaryData', JSON.stringify(beneficiaryData));
+                      setShowModal(false);
+                      navigate('/new-case');
+                    }} 
+                    className="btn btn-primary"
+                    style={{ marginRight: '10px' }}
+                  >
+                    Add New Case for {selectedBeneficiary.name}
+                  </button>
+                  <button 
+                    onClick={() => setShowModal(false)} 
+                    className="btn btn-secondary"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>

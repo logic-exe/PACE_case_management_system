@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { caseAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdSearch } from 'react-icons/md';
 
 const AllCases = () => {
   const navigate = useNavigate();
@@ -13,12 +14,13 @@ const AllCases = () => {
     case_type: '',
     status: '',
     case_resolution_type: '',
-    court: ''
+    court: '',
+    dateFilter: '' // Add date filter
   });
 
   useEffect(() => {
     fetchCases();
-  }, []);
+  }, [filters.dateFilter]); // Refetch when date filter changes
 
   useEffect(() => {
     applyFilters();
@@ -26,7 +28,7 @@ const AllCases = () => {
 
   const fetchCases = async () => {
     try {
-      const response = await caseAPI.getAll();
+      const response = await caseAPI.getAll(filters.dateFilter);
       setCases(response.data.cases);
       setFilteredCases(response.data.cases);
     } catch (error) {
@@ -76,7 +78,17 @@ const AllCases = () => {
       case_type: '',
       status: '',
       case_resolution_type: '',
-      court: ''
+      court: '',
+      dateFilter: ''
+    });
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
     });
   };
 
@@ -115,7 +127,7 @@ const AllCases = () => {
         {/* Search Bar */}
         <div className="search-bar-container">
           <div className="search-bar">
-            <span className="search-icon-input">🔍</span>
+            <span className="search-icon-input"><MdSearch /></span>
             <input
               type="text"
               placeholder="Search by case code, beneficiary name, or case title..."
@@ -128,6 +140,20 @@ const AllCases = () => {
         <div className="filters-section">
           <h3>Filters</h3>
           <div className="filters-grid">
+            <select
+              value={filters.dateFilter}
+              onChange={(e) => handleFilterChange('dateFilter', e.target.value)}
+            >
+              <option value="">All Time</option>
+              <option value="6months">Last 6 Months</option>
+              <optgroup label="Year-wise">
+                <option value="year-2025">2025</option>
+                <option value="year-2024">2024</option>
+                <option value="year-2023">2023</option>
+                <option value="year-2022">2022</option>
+              </optgroup>
+            </select>
+
             <select
               value={filters.case_type}
               onChange={(e) => handleFilterChange('case_type', e.target.value)}

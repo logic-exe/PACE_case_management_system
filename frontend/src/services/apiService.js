@@ -14,6 +14,7 @@ export const authAPI = {
 export const beneficiaryAPI = {
   getAll: () => api.get('/beneficiaries'),
   getById: (id) => api.get(`/beneficiaries/${id}`),
+  findByNameAndPhone: (name, phone) => api.get('/beneficiaries/find', { params: { name, phone } }),
   create: (data) => api.post('/beneficiaries', data),
   update: (id, data) => api.put(`/beneficiaries/${id}`, data),
   delete: (id) => api.delete(`/beneficiaries/${id}`)
@@ -21,8 +22,8 @@ export const beneficiaryAPI = {
 
 // Case API
 export const caseAPI = {
-  getAll: () => api.get('/cases'),
-  getOngoing: () => api.get('/cases/ongoing'),
+  getAll: (dateFilter) => api.get('/cases', { params: dateFilter ? { dateFilter } : {} }),
+  getOngoing: (dateFilter) => api.get('/cases/ongoing', { params: dateFilter ? { dateFilter } : {} }),
   getWithFilters: (filters) => api.get('/cases/filter', { params: filters }),
   getById: (id) => api.get(`/cases/${id}`),
   create: (data, driveToken) => {
@@ -40,7 +41,9 @@ export const eventAPI = {
   createEvent: (caseId, data) => api.post(`/events/cases/${caseId}/events`, data),
   getByCaseId: (caseId) => api.get(`/events/cases/${caseId}/events`),
   getEventsByCase: (caseId) => api.get(`/events/cases/${caseId}/events`), // Alias for compatibility
+  getById: (eventId) => api.get(`/events/${eventId}`),
   updateEvent: (eventId, data) => api.put(`/events/${eventId}`, data),
+  deleteEvent: (eventId) => api.delete(`/events/${eventId}`),
   createReminder: (eventId, data) => api.post(`/events/${eventId}/reminders`, data),
   getUpcomingReminders: () => api.get('/events/reminders/upcoming')
 };

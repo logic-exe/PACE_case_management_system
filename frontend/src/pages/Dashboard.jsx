@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardAPI, eventAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdSearch, MdLocationOn, MdAccessTime } from 'react-icons/md';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -15,7 +16,8 @@ const Dashboard = () => {
   const [filters, setFilters] = useState({
     event_type: '',
     search: '',
-    days: '7'
+    days: '7',
+    dateFilter: '' // Add date filter for cases
   });
 
   const navigate = useNavigate();
@@ -145,7 +147,7 @@ const Dashboard = () => {
 
         <div className="filters-section-dashboard">
           <div className="search-box">
-            <span className="search-icon">🔍</span>
+            <span className="search-icon"><MdSearch /></span>
             <input
               type="text"
               placeholder="Search by beneficiary name or case number"
@@ -227,8 +229,8 @@ const Dashboard = () => {
                       <span className="beneficiary">{event.beneficiary_name}</span>
                     </p>
                     <p className="event-info">
-                      <span>📍 {event.location}</span>
-                      <span>🕐 {event.event_time}</span>
+                      <span><MdLocationOn style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.location}</span>
+                      <span><MdAccessTime style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.event_time}</span>
                     </p>
                   </div>
                   <div className="event-type">
