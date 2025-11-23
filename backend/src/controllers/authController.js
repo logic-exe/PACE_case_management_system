@@ -126,6 +126,10 @@ export const handleGoogleCallback = async (req, res) => {
     
     const tokens = await getTokensFromCode(code);
     
+    if (!tokens || !tokens.access_token) {
+      return res.status(400).json({ error: 'Failed to obtain access token from Google' });
+    }
+    
     // Calculate expiry in seconds
     const expiresIn = tokens.expiry_date 
       ? Math.floor((tokens.expiry_date - Date.now()) / 1000)
@@ -138,6 +142,7 @@ export const handleGoogleCallback = async (req, res) => {
     });
   } catch (error) {
     console.error('Google callback error:', error);
-    res.status(500).json({ error: 'Failed to exchange code for tokens' });
+    const errorMessage = error.message || 'Failed to exchange code for tokens';
+    res.status(500).json({ error: errorMessage });
   }
 };

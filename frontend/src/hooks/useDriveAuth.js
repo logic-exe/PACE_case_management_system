@@ -42,12 +42,17 @@ export const useDriveAuth = () => {
     try {
       const response = await authAPI.handleGoogleCallback(code);
       const { accessToken, expiresIn } = response.data;
-      saveToken(accessToken, expiresIn);
-      toast.success('Google Drive connected successfully!');
-      return true;
+      if (accessToken) {
+        saveToken(accessToken, expiresIn);
+        toast.success('Google Drive connected successfully!');
+        return true;
+      } else {
+        toast.error('No access token received from Google');
+        return false;
+      }
     } catch (error) {
       console.error('Failed to exchange code:', error);
-      toast.error('Failed to connect Google Drive');
+      toast.error(error.response?.data?.error || 'Failed to connect Google Drive');
       return false;
     }
   };

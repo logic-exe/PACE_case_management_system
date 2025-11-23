@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { beneficiaryAPI, caseAPI } from '../services/apiService';
+import { beneficiaryAPI, caseAPI, documentAPI } from '../services/apiService';
 import { useDriveAuth } from '../hooks/useDriveAuth';
 import toast from 'react-hot-toast';
 
@@ -93,8 +93,43 @@ const NewCase = () => {
         createDriveFolder: createDriveFolder && isConnected
       };
       
-      await caseAPI.create(caseData, driveToken);
-      toast.success('Case created successfully!');
+      const caseRes = await caseAPI.create(caseData, driveToken);
+      const newCaseId = caseRes.data.case.id;
+      
+      // Upload documents if any files were selected and Drive is connected
+      if (uploadedFiles.length > 0 && isConnected && driveToken) {
+        if (!caseRes.data.case.google_drive_folder_id) {
+          toast.error('Case folder not created. Documents cannot be uploaded.');
+        } else {
+          let uploadCount = 0;
+          let failCount = 0;
+          
+          for (const file of uploadedFiles) {
+            try {
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('category', 'other');
+              formData.append('fileName', file.name);
+              
+              await documentAPI.upload(newCaseId, formData, driveToken);
+              uploadCount++;
+            } catch (error) {
+              console.error(`Failed to upload ${file.name}:`, error);
+              failCount++;
+            }
+          }
+          
+          if (uploadCount > 0) {
+            toast.success(`Case created! ${uploadCount} document(s) uploaded successfully.`);
+          }
+          if (failCount > 0) {
+            toast.error(`${failCount} document(s) failed to upload.`);
+          }
+        }
+      } else {
+        toast.success('Case created successfully!');
+      }
+      
       navigate('/cases');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to create case');
