@@ -2,28 +2,52 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { beneficiaryAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
-import { MdEdit, MdDelete, MdPhone, MdEmail, MdLocationOn, MdCalendarToday, MdPhoneAndroid, MdMenuBook } from 'react-icons/md';
+import { MdEdit, MdDelete, MdPhone, MdEmail, MdLocationOn, MdCalendarToday, MdPhoneAndroid, MdMenuBook, MdSearch } from 'react-icons/md';
 
 const Beneficiaries = () => {
   const navigate = useNavigate();
   const [beneficiaries, setBeneficiaries] = useState([]);
+  const [filteredBeneficiaries, setFilteredBeneficiaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchBeneficiaries();
   }, []);
 
+  useEffect(() => {
+    applySearch();
+  }, [searchQuery, beneficiaries]);
+
   const fetchBeneficiaries = async () => {
     try {
       const response = await beneficiaryAPI.getAll();
       setBeneficiaries(response.data.beneficiaries);
+      setFilteredBeneficiaries(response.data.beneficiaries);
     } catch (error) {
       toast.error('Failed to load beneficiaries');
     } finally {
       setLoading(false);
     }
+  };
+
+  const applySearch = () => {
+    if (!searchQuery.trim()) {
+      setFilteredBeneficiaries(beneficiaries);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = beneficiaries.filter(beneficiary => 
+      beneficiary.name?.toLowerCase().includes(query) ||
+      beneficiary.contact_number?.includes(query) ||
+      beneficiary.email?.toLowerCase().includes(query) ||
+      beneficiary.address?.toLowerCase().includes(query) ||
+      beneficiary.cases?.some(c => c.case_code?.toLowerCase().includes(query))
+    );
+    setFilteredBeneficiaries(filtered);
   };
 
   const deleteBeneficiary = async (beneficiaryId, beneficiaryName) => {
@@ -103,66 +127,89 @@ const Beneficiaries = () => {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="search-bar-container">
+          <div className="search-bar">
+            <span className="search-icon-input"><MdSearch /></span>
+            <input
+              type="text"
+              placeholder="Search by name, phone, email, address, or case code..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="cases-count" style={{ marginTop: '1rem' }}>
+          <p>Showing {filteredBeneficiaries.length} of {beneficiaries.length} beneficiaries</p>
+        </div>
+
         <div className="beneficiaries-grid">
-          {beneficiaries.map((beneficiary) => (
-            <div 
-              key={beneficiary.id} 
-              className="beneficiary-card clickable-card"
-              onClick={() => viewBeneficiary(beneficiary)}
-            >
-              <div className="beneficiary-header">
-                <h3>{beneficiary.name}</h3>
-                <div className="card-action-buttons">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      editBeneficiary(beneficiary.id);
-                    }}
-                    className="card-action-btn edit-btn"
-                    title="Edit Beneficiary"
-                  >
-                    <MdEdit />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteBeneficiary(beneficiary.id, beneficiary.name);
-                    }}
-                    className="card-action-btn delete-btn"
-                    title="Delete Beneficiary"
-                  >
-                    <MdDelete />
-                  </button>
+          {filteredBeneficiaries.length === 0 ? (
+            <div className="empty-state">
+              <p>No beneficiaries found matching your search</p>
+            </div>
+          ) : (
+            filteredBeneficiaries.map((beneficiary) => (
+              <div 
+                key={beneficiary.id} 
+                className="beneficiary-card clickable-card"
+                onClick={() => viewBeneficiary(beneficiary)}
+              >
+                <div className="beneficiary-header">
+                  <h3>{beneficiary.name}</h3>
+                  <div className="card-action-buttons">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editBeneficiary(beneficiary.id);
+                      }}
+                      className="card-action-btn edit-btn"
+                      title="Edit Beneficiary"
+                    >
+                      <MdEdit />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteBeneficiary(beneficiary.id, beneficiary.name);
+                      }}
+                      className="card-action-btn delete-btn"
+                      title="Delete Beneficiary"
+                    >
+                      <MdDelete />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="beneficiary-tags">
-                {beneficiary.has_smartphone && (
-                  <span className="tag tag-smartphone"><MdPhoneAndroid /> Smartphone</span>
-                )}
-                {beneficiary.can_read && (
-                  <span className="tag tag-literate"><MdMenuBook /> Can Read</span>
-                )}
-              </div>
-              
-              <div className="beneficiary-info">
-                <p><strong>Contact:</strong> {formatPhoneNumber(beneficiary.contact_number)}</p>
-                <p><strong>Email:</strong> {beneficiary.email || 'N/A'}</p>
-                <p><strong>Date of Filing:</strong> {formatDate(beneficiary.date_of_filing)}</p>
-                <p><strong>Address:</strong> {beneficiary.address || 'N/A'}</p>
                 
-                {/* Show case count */}
-                <div className="beneficiary-cases-summary" style={{ marginTop: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
-                  <strong>Cases: {beneficiary.cases.length}</strong>
-                  {beneficiary.cases.length > 0 && (
-                    <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '4px' }}>
-                      {beneficiary.cases.map(c => c.case_code).join(', ')}
-                    </div>
+                <div className="beneficiary-tags">
+                  {beneficiary.has_smartphone && (
+                    <span className="tag tag-smartphone"><MdPhoneAndroid /> Smartphone</span>
+                  )}
+                  {beneficiary.can_read && (
+                    <span className="tag tag-literate"><MdMenuBook /> Can Read</span>
                   )}
                 </div>
+                
+                <div className="beneficiary-info">
+                  <p><strong>Contact:</strong> {formatPhoneNumber(beneficiary.contact_number)}</p>
+                  <p><strong>Email:</strong> {beneficiary.email || 'N/A'}</p>
+                  <p><strong>Date of Filing:</strong> {formatDate(beneficiary.date_of_filing)}</p>
+                  <p><strong>Address:</strong> {beneficiary.address || 'N/A'}</p>
+                  
+                  {/* Show case count */}
+                  <div className="beneficiary-cases-summary" style={{ marginTop: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                    <strong>Cases: {beneficiary.cases.length}</strong>
+                    {beneficiary.cases.length > 0 && (
+                      <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '4px' }}>
+                        {beneficiary.cases.map(c => c.case_code).join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {showModal && selectedBeneficiary && (

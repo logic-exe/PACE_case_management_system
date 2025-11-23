@@ -22,6 +22,7 @@ const NewCase = () => {
     case_type_other: '',
     case_title: '',
     case_resolution_type: '',
+    case_resolution_type_other: '',
     court: '',
     court_other: '',
     organizations: [],
@@ -115,7 +116,7 @@ const NewCase = () => {
         beneficiary_id: beneficiaryId,
         case_type: formData.case_type === 'Other' ? formData.case_type_other : formData.case_type,
         case_title: formData.case_title,
-        case_resolution_type: formData.case_resolution_type,
+        case_resolution_type: formData.case_resolution_type === 'Other' ? formData.case_resolution_type_other : formData.case_resolution_type,
         court: formData.court === 'Other' ? formData.court_other : formData.court,
         organizations: formData.organizations,
         status: 'active',
@@ -289,6 +290,24 @@ const NewCase = () => {
                 <option value="Other">Other</option>
               </select>
             </div>
+
+            {formData.case_type === 'Other' && (
+              <div className="form-group">
+                <label htmlFor="case_type_other">
+                  Please specify case type <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="case_type_other"
+                  name="case_type_other"
+                  value={formData.case_type_other}
+                  onChange={handleInputChange}
+                  placeholder="Enter specific case type"
+                  required
+                />
+              </div>
+            )}
+
             <div className="form-group">
               <label htmlFor="case_title">
                 Case Title/Description <span className="required">*</span>
@@ -303,6 +322,7 @@ const NewCase = () => {
                 required
               />
             </div>
+
             <div className="form-grid-2">
               <div className="form-group">
                 <label htmlFor="case_resolution_type">
@@ -321,8 +341,10 @@ const NewCase = () => {
                   <option value="Arbitration">Arbitration</option>
                   <option value="Legal Aid">Legal Aid</option>
                   <option value="Counseling">Counseling</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
+
               <div className="form-group">
                 <label htmlFor="court">Specific Court (if applicable)</label>
                 <select
@@ -341,39 +363,39 @@ const NewCase = () => {
                 </select>
               </div>
             </div>
-            <div className="form-group">
-              <label>Organizations Involved</label>
-              <div className="checkbox-grid">
-                {[
-                  'NCW (National Commission for Women)',
-                  'DCW (Delhi Commission for Women)',
-                  'Thana (Police Station)',
-                  'District Office',
-                  'CWC (Child Welfare Committee)',
-                  'DLSA (District Legal Services Authority)'
-                ].map(org => (
-                  <label key={org} className="checkbox-label-new">
-                    <input
-                      type="checkbox"
-                      checked={formData.organizations.includes(org)}
-                      onChange={() => handleOrganizationToggle(org)}
-                    />
-                    <span>{org}</span>
-                  </label>
-                ))}
+
+            {formData.case_resolution_type === 'Other' && (
+              <div className="form-group">
+                <label htmlFor="case_resolution_type_other">
+                  Please specify resolution type <span className="required">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="case_resolution_type_other"
+                  name="case_resolution_type_other"
+                  value={formData.case_resolution_type_other}
+                  onChange={handleInputChange}
+                  placeholder="Enter specific resolution type"
+                  required
+                />
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="case_notes">Case Notes/Background</label>
-              <textarea
-                id="case_notes"
-                name="case_notes"
-                value={formData.case_notes}
-                onChange={handleInputChange}
-                rows="4"
-                placeholder="Provide detailed background information about the case..."
-              />
-            </div>
+            )}
+
+            {formData.court === 'Other' && (
+              <div className="form-group">
+                <label htmlFor="court_other">
+                  Please specify court
+                </label>
+                <input
+                  type="text"
+                  id="court_other"
+                  name="court_other"
+                  value={formData.court_other}
+                  onChange={handleInputChange}
+                  placeholder="Enter specific court name"
+                />
+              </div>
+            )}
           </div>
 
           <div className="form-section-card">
