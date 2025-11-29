@@ -187,27 +187,66 @@ export const Case = {
   },
 
   async update(id, data) {
+    // Build dynamic UPDATE query to handle partial updates
+    const updateFields = [];
+    const values = [];
+    let paramCount = 1;
+
+    // Only include fields that are provided in data
+    if (data.beneficiary_id !== undefined) {
+      updateFields.push(`beneficiary_id = $${paramCount++}`);
+      values.push(data.beneficiary_id);
+    }
+    if (data.case_type !== undefined) {
+      updateFields.push(`case_type = $${paramCount++}`);
+      values.push(data.case_type);
+    }
+    if (data.case_title !== undefined) {
+      updateFields.push(`case_title = $${paramCount++}`);
+      values.push(data.case_title);
+    }
+    if (data.case_resolution_type !== undefined) {
+      updateFields.push(`case_resolution_type = $${paramCount++}`);
+      values.push(data.case_resolution_type);
+    }
+    if (data.court !== undefined) {
+      updateFields.push(`court = $${paramCount++}`);
+      values.push(data.court);
+    }
+    if (data.organizations !== undefined) {
+      updateFields.push(`organizations = $${paramCount++}`);
+      values.push(data.organizations);
+    }
+    if (data.status !== undefined) {
+      updateFields.push(`status = $${paramCount++}`);
+      values.push(data.status);
+    }
+    if (data.notes !== undefined) {
+      updateFields.push(`notes = $${paramCount++}`);
+      values.push(data.notes);
+    }
+    if (data.google_drive_folder_id !== undefined) {
+      updateFields.push(`google_drive_folder_id = $${paramCount++}`);
+      values.push(data.google_drive_folder_id);
+    }
+    if (data.google_drive_url !== undefined) {
+      updateFields.push(`google_drive_url = $${paramCount++}`);
+      values.push(data.google_drive_url);
+    }
+
+    // Always update the updated_at timestamp
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    // Add the id parameter
+    values.push(id);
+
     const query = `
       UPDATE cases
-      SET beneficiary_id = $1, case_type = $2, case_title = $3, case_resolution_type = $4,
-          court = $5, organizations = $6, status = $7, notes = $8, 
-          google_drive_folder_id = $9, google_drive_url = $10, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $11
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
       RETURNING *
     `;
-    const values = [
-      data.beneficiary_id,
-      data.case_type,
-      data.case_title,
-      data.case_resolution_type,
-      data.court,
-      data.organizations,
-      data.status,
-      data.notes,
-      data.google_drive_folder_id,
-      data.google_drive_url,
-      id
-    ];
+
     const result = await pool.query(query, values);
     return result.rows[0];
   },

@@ -13,13 +13,15 @@ import {
 const router = express.Router();
 
 // Public routes (authentication disabled)
+// Specific routes MUST come before parameterized routes
 router.get('/upcoming', getUpcomingEvents);
-router.get('/:eventId', getEventById);
+router.get('/reminders/upcoming', getUpcomingReminders);
 router.post('/cases/:id/events', createEvent);
 router.get('/cases/:id/events', getEventsByCase);
+// Parameterized routes LAST
+router.get('/:eventId', getEventById);
 router.put('/:eventId', updateEvent);
 router.delete('/:eventId', deleteEvent);
 router.post('/:id/reminders', createReminder);
-router.get('/reminders/upcoming', getUpcomingReminders);
 
 export default router;

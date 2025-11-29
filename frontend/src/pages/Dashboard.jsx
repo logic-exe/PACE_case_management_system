@@ -26,27 +26,26 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [filters, allEvents]);
-
   const fetchDashboardData = async () => {
     try {
       const [statsRes, eventsRes] = await Promise.all([
         dashboardAPI.getStats(),
-        eventAPI.getUpcoming(30)
+        eventAPI.getUpcoming(90) // Fetch next 90 days for better visibility
       ]);
       setStats(statsRes.data);
-      setAllEvents(eventsRes.data.events || []);
-      setUpcomingEvents(eventsRes.data.events || []);
+      const events = eventsRes.data.events || [];
+      console.log('Dashboard Events Loaded:', events.length, 'events'); // Debug log
+      setAllEvents(events);
+      setUpcomingEvents(events);
     } catch (error) {
+      console.error('Dashboard data fetch error:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
-  const applyFilters = () => {
+  useEffect(() => {
     let filtered = [...allEvents];
 
     // Filter by event type
@@ -77,26 +76,10 @@ const Dashboard = () => {
     });
 
     setUpcomingEvents(filtered);
-  };
+  }, [filters, allEvents]);
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      event_type: '',
-      search: '',
-      days: '7'
-    });
-  };
-
-  const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
   };
 
   if (loading) {

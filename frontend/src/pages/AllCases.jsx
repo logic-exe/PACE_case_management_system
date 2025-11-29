@@ -9,6 +9,9 @@ const AllCases = () => {
   const [cases, setCases] = useState([]);
   const [filteredCases, setFilteredCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [updatingCase, setUpdatingCase] = useState(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [filters, setFilters] = useState({
     search: '',
     case_type: '',
@@ -19,26 +22,21 @@ const AllCases = () => {
   });
 
   useEffect(() => {
-    fetchCases();
+    const fetchCasesData = async () => {
+      try {
+        const response = await caseAPI.getAll(filters.dateFilter);
+        setCases(response.data.cases);
+        setFilteredCases(response.data.cases);
+      } catch {
+        toast.error('Failed to load cases');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCasesData();
   }, [filters.dateFilter]); // Refetch when date filter changes
 
   useEffect(() => {
-    applyFilters();
-  }, [filters, cases]);
-
-  const fetchCases = async () => {
-    try {
-      const response = await caseAPI.getAll(filters.dateFilter);
-      setCases(response.data.cases);
-      setFilteredCases(response.data.cases);
-    } catch (error) {
-      toast.error('Failed to load cases');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
     let filtered = [...cases];
 
     // Search filter
@@ -66,7 +64,19 @@ const AllCases = () => {
     }
 
     setFilteredCases(filtered);
-  };
+  }, [filters, cases]);
+
+  useEffect(() => {
+    // Close dropdown when clicking outside
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.status-dropdown-container')) {
+        setOpenDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
@@ -83,23 +93,68 @@ const AllCases = () => {
     });
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
   const getStatusBadgeClass = (status) => {
     const statusClasses = {
       active: 'badge-active',
       pending: 'badge-pending',
       urgent: 'badge-urgent',
-      resolved: 'badge-resolved'
+      resolved: 'badge-resolved',
+      closed: 'badge-closed'
     };
     return statusClasses[status] || 'badge-default';
+  };
+
+  const handleStatusChange = async (caseId, newStatus) => {
+    setUpdatingCase(caseId);
+    try {
+      await caseAPI.update(caseId, { status: newStatus });
+      
+      // Update local state
+      setCases(prev =>
+        prev.map(c =>
+          c.id === caseId ? { ...c, status: newStatus } : c
+        )
+      );
+      
+      toast.success(`Case status updated to ${newStatus}`);
+      setOpenDropdown(null);
+    } catch {
+      toast.error('Failed to update case status');
+    } finally {
+      setUpdatingCase(null);
+    }
+  };
+
+  const handleStatusClick = (e, caseId) => {
+    e.stopPropagation(); // Prevent row click navigation
+    
+    if (openDropdown === caseId) {
+      setOpenDropdown(null);
+    } else {
+      // Calculate position for fixed positioning
+      const rect = e.currentTarget.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 200; // Approximate height of dropdown
+      
+      // Position below the button, or above if not enough space
+      let top = rect.bottom + window.scrollY + 5;
+      if (rect.bottom + dropdownHeight > viewportHeight) {
+        top = rect.top + window.scrollY - dropdownHeight - 5;
+      }
+      
+      // Position to left of button, keeping it visible
+      let left = rect.left + window.scrollX;
+      if (left + 120 > window.innerWidth) {
+        left = rect.right + window.scrollX - 120;
+      }
+      
+      setDropdownPosition({ top, left });
+      setOpenDropdown(caseId);
+    }
+  };
+
+  const handleRowClick = (caseId) => {
+    navigate(`/cases/${caseId}`);
   };
 
   if (loading) {
@@ -230,9 +285,10 @@ const AllCases = () => {
               ) : (
                 filteredCases.map((caseItem) => (
                   <tr 
-                    key={caseItem.id} 
-                    onClick={() => navigate(`/cases/${caseItem.id}`)}
+                    key={caseItem.id}
                     className="clickable-row"
+                    onClick={() => handleRowClick(caseItem.id)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <td><strong>{caseItem.case_code}</strong></td>
                     <td>{caseItem.beneficiary_name}</td>
@@ -240,9 +296,56 @@ const AllCases = () => {
                     <td>{caseItem.court}</td>
                     <td>{caseItem.case_resolution_type}</td>
                     <td>
-                      <span className={`badge ${getStatusBadgeClass(caseItem.status)}`}>
-                        {caseItem.status}
-                      </span>
+                      <div className="status-dropdown-container">
+                        <button
+                          className={`badge ${getStatusBadgeClass(caseItem.status)} status-badge-btn`}
+                          onClick={(e) => handleStatusClick(e, caseItem.id)}
+                          disabled={updatingCase === caseItem.id}
+                        >
+                          {updatingCase === caseItem.id ? 'Updating...' : caseItem.status}
+                        </button>
+                        
+                        {openDropdown === caseItem.id && (
+                          <div 
+                            className="status-dropdown"
+                            style={{
+                              top: `${dropdownPosition.top}px`,
+                              left: `${dropdownPosition.left}px`
+                            }}
+                          >
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleStatusChange(caseItem.id, 'active')}
+                            >
+                              Active
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleStatusChange(caseItem.id, 'pending')}
+                            >
+                              Pending
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleStatusChange(caseItem.id, 'urgent')}
+                            >
+                              Urgent
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleStatusChange(caseItem.id, 'resolved')}
+                            >
+                              Resolved
+                            </button>
+                            <button
+                              className="dropdown-item"
+                              onClick={() => handleStatusChange(caseItem.id, 'closed')}
+                            >
+                              Closed
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

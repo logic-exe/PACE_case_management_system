@@ -47,13 +47,12 @@ export const Event = {
 
   async getUpcoming(days = 7) {
     const query = `
-      SELECT e.*, c.case_code, c.case_title, b.name as beneficiary_name, 
+      SELECT e.*, c.case_code, c.id as case_id, c.case_title, b.name as beneficiary_name, 
              b.contact_number, b.has_smartphone, b.can_read
       FROM case_events e
       LEFT JOIN cases c ON e.case_id = c.id
       LEFT JOIN beneficiaries b ON c.beneficiary_id = b.id
       WHERE e.event_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '1 day' * $1
-      AND e.event_status = 'scheduled'
       ORDER BY e.event_date ASC, e.event_time ASC
     `;
     const result = await pool.query(query, [days]);
