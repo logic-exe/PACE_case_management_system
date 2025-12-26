@@ -59,6 +59,18 @@ const EditEvent = () => {
     try {
       await eventAPI.updateEvent(eventId, formData);
       toast.success('Event updated successfully');
+      
+      // Dispatch custom events to notify other pages to refresh
+      window.dispatchEvent(new CustomEvent('eventUpdated', { 
+        detail: { eventId, caseId, updated: true } 
+      }));
+      // Also dispatch caseUpdated since case status may have changed
+      if (caseId) {
+        window.dispatchEvent(new CustomEvent('caseUpdated', { 
+          detail: { caseId, updated: true } 
+        }));
+      }
+      
       navigate(caseId ? `/cases/${caseId}` : -1);
     } catch (error) {
       toast.error('Failed to update event');

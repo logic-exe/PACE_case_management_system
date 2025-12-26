@@ -79,7 +79,10 @@ export const createCase = async (req, res) => {
     if (driveAccessToken && req.body.createDriveFolder !== false) {
       try {
         console.log('Creating Google Drive folder for case:', caseCode);
-        const folderName = `${caseCode} - ${beneficiary.name}`;
+        // Get sequential ID (count of all cases + 1)
+        const caseCount = await Case.getTotalCount();
+        const sequentialId = caseCount + 1;
+        const folderName = `${sequentialId} - ${beneficiary.name}`;
         const folder = await driveService.createFolder(driveAccessToken, folderName);
         
         caseData.google_drive_folder_id = folder.id;

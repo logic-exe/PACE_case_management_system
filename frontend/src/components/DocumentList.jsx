@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { documentAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdDescription } from 'react-icons/md';
 
 const DocumentList = ({ caseId, driveToken, refreshTrigger }) => {
   const [documents, setDocuments] = useState([]);
@@ -94,7 +95,7 @@ const DocumentList = ({ caseId, driveToken, refreshTrigger }) => {
           {documents.map((doc) => (
             <div key={doc.id} className="document-card">
               <div className="document-card-header">
-                <span className="document-icon">📄</span>
+                <span className="document-icon"><MdDescription /></span>
                 <div className="document-info">
                   <h4 className="document-name">{doc.name}</h4>
                   <div className="document-meta">

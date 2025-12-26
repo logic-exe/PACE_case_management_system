@@ -15,6 +15,17 @@ const Beneficiaries = () => {
 
   useEffect(() => {
     fetchBeneficiaries();
+    
+    // Listen for case updates to refresh beneficiaries (to update case counts)
+    const handleCaseUpdate = () => {
+      fetchBeneficiaries();
+    };
+    
+    window.addEventListener('caseUpdated', handleCaseUpdate);
+    
+    return () => {
+      window.removeEventListener('caseUpdated', handleCaseUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -140,7 +151,7 @@ const Beneficiaries = () => {
           </div>
         </div>
 
-        <div className="cases-count" style={{ marginTop: '1rem' }}>
+        <div className="cases-count">
           <p>Showing {filteredBeneficiaries.length} of {beneficiaries.length} beneficiaries</p>
         </div>
 
@@ -198,10 +209,10 @@ const Beneficiaries = () => {
                   <p><strong>Address:</strong> {beneficiary.address || 'N/A'}</p>
                   
                   {/* Show case count */}
-                  <div className="beneficiary-cases-summary" style={{ marginTop: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
+                  <div className="beneficiary-cases-summary">
                     <strong>Cases: {beneficiary.cases.length}</strong>
                     {beneficiary.cases.length > 0 && (
-                      <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '4px' }}>
+                      <div>
                         {beneficiary.cases.map(c => c.case_code).join(', ')}
                       </div>
                     )}
@@ -223,16 +234,16 @@ const Beneficiaries = () => {
               <div className="modal-body">
                 <div className="detail-section">
                   <h3>Contact Information</h3>
-                  <p><MdPhone style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Phone:</strong> {formatPhoneNumber(selectedBeneficiary.contact_number)}</p>
-                  <p><MdEmail style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Email:</strong> {selectedBeneficiary.email || 'N/A'}</p>
-                  <p><MdLocationOn style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Address:</strong> {selectedBeneficiary.address || 'N/A'}</p>
+                  <p className="icon-with-text"><MdPhone /><strong>Phone:</strong> {formatPhoneNumber(selectedBeneficiary.contact_number)}</p>
+                  <p className="icon-with-text"><MdEmail /><strong>Email:</strong> {selectedBeneficiary.email || 'N/A'}</p>
+                  <p className="icon-with-text"><MdLocationOn /><strong>Address:</strong> {selectedBeneficiary.address || 'N/A'}</p>
                 </div>
 
                 <div className="detail-section">
                   <h3>Communication Preferences</h3>
                   <p><strong>Has Smartphone:</strong> {selectedBeneficiary.has_smartphone ? 'Yes' : 'No'}</p>
                   <p><strong>Can Read:</strong> {selectedBeneficiary.can_read ? 'Yes' : 'No'}</p>
-                  <p><MdCalendarToday style={{ verticalAlign: 'middle', marginRight: '8px' }} /><strong>Date of Filing:</strong> {formatDate(selectedBeneficiary.date_of_filing)}</p>
+                  <p className="icon-with-text"><MdCalendarToday /><strong>Date of Filing:</strong> {formatDate(selectedBeneficiary.date_of_filing)}</p>
                 </div>
 
                 <div className="detail-section">
@@ -249,32 +260,28 @@ const Beneficiaries = () => {
                             e.stopPropagation();
                             navigateToCase(caseItem.id);
                           }}
-                          style={{ 
-                            border: '1px solid #e0e0e0', 
-                            borderRadius: '8px', 
-                            padding: '12px', 
-                            marginBottom: '8px',
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
                         >
-                          <div className="case-item-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ color: '#2c5aa0' }}>{caseItem.case_code}</strong>
+                          <div className="case-item-header">
+                            <strong>{caseItem.case_code}</strong>
                             <span className={`badge ${getStatusBadgeClass(caseItem.status)}`}>
                               {caseItem.status}
                             </span>
                           </div>
-                          <p className="case-item-type" style={{ margin: '4px 0', fontWeight: '500', color: '#555' }}>
+                          <p className="case-item-type">
                             {caseItem.case_type}
                           </p>
-                          <p className="case-item-title" style={{ margin: '4px 0', fontSize: '0.9rem', color: '#777' }}>
+                          <p className="case-item-title">
                             {caseItem.case_title}
                           </p>
-                          <div className="case-item-meta" style={{ fontSize: '0.8rem', color: '#999', marginTop: '8px' }}>
-                            <span style={{ marginRight: '15px' }}>📅 {formatDate(caseItem.created_at)}</span>
-                            {caseItem.court && <span>⚖️ {caseItem.court}</span>}
+                          <div className="case-item-meta">
+                            <span>
+                              <MdCalendarToday className="icon-inline" /> {formatDate(caseItem.created_at)}
+                            </span>
+                            {caseItem.court && (
+                              <span>
+                                <MdLocationOn className="icon-inline" /> {caseItem.court}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -282,7 +289,7 @@ const Beneficiaries = () => {
                   )}
                 </div>
 
-                <div className="modal-actions" style={{ marginTop: '20px', textAlign: 'center' }}>
+                <div className="modal-actions">
                   <button 
                     onClick={() => {
                       // Pre-fill the form with beneficiary data and navigate to new case
@@ -300,14 +307,13 @@ const Beneficiaries = () => {
                       setShowModal(false);
                       navigate('/new-case');
                     }} 
-                    className="btn btn-primary"
-                    style={{ marginRight: '10px' }}
+                    className="btn-primary"
                   >
                     Add New Case for {selectedBeneficiary.name}
                   </button>
                   <button 
                     onClick={() => setShowModal(false)} 
-                    className="btn btn-secondary"
+                    className="btn-secondary"
                   >
                     Close
                   </button>

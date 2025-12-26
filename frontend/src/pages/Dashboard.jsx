@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dashboardAPI, eventAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
-import { MdSearch, MdLocationOn, MdAccessTime } from 'react-icons/md';
+import { MdSearch, MdLocationOn, MdAccessTime, MdPerson } from 'react-icons/md';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
     totalCases: 0,
+    activeCases: 0,
     ongoingCases: 0,
-    disposedCases: 0
+    disposedCases: 0,
+    urgentCases: 0,
+    pendingCases: 0
   });
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [allEvents, setAllEvents] = useState([]);
@@ -24,6 +27,24 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Listen for case updates to refresh dashboard
+    const handleCaseUpdate = () => {
+      fetchDashboardData();
+    };
+    
+    // Listen for event updates to refresh dashboard
+    const handleEventUpdate = () => {
+      fetchDashboardData();
+    };
+    
+    window.addEventListener('caseUpdated', handleCaseUpdate);
+    window.addEventListener('eventUpdated', handleEventUpdate);
+    
+    return () => {
+      window.removeEventListener('caseUpdated', handleCaseUpdate);
+      window.removeEventListener('eventUpdated', handleEventUpdate);
+    };
   }, []);
 
   const fetchDashboardData = async () => {
@@ -98,34 +119,56 @@ const Dashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard-header-main">
           <div className="header-left">
-            <h1>Case Management Dashboard</h1>
-            <p>Track and manage all ongoing cases for PACE Foundation</p>
+            <h1>Dashboard</h1>
+            <p>Track and manage all ongoing cases</p>
           </div>
           <Link to="/new-case" className="btn-add-case">
             <span>+</span> Add New Case
           </Link>
         </div>
 
-        <div className="stats-grid-4">
-          <div className="stat-card-new">
+        <div className={stats.urgentCases > 0 ? "stats-grid-5" : "stats-grid-4"}>
+          <Link 
+            to="/cases" 
+            className="stat-card-new stat-card-link"
+          >
             <h3>Total Cases</h3>
             <p className="stat-number">{stats.totalCases}</p>
-          </div>
+          </Link>
 
-          <div className="stat-card-new active">
+          <Link 
+            to="/cases?status=active" 
+            className="stat-card-new active stat-card-link"
+          >
             <h3>Active Cases</h3>
-            <p className="stat-number stat-active">{stats.ongoingCases}</p>
-          </div>
+            <p className="stat-number stat-active">{stats.activeCases || 0}</p>
+          </Link>
 
-          <div className="stat-card-new pending">
+          <Link 
+            to="/cases?status=pending" 
+            className="stat-card-new pending stat-card-link"
+          >
             <h3>Pending Cases</h3>
-            <p className="stat-number stat-pending">{stats.totalCases - stats.ongoingCases - stats.disposedCases}</p>
-          </div>
+            <p className="stat-number stat-pending">{stats.pendingCases || 0}</p>
+          </Link>
 
-          <div className="stat-card-new resolved">
+          <Link 
+            to="/cases?status=resolved" 
+            className="stat-card-new resolved stat-card-link"
+          >
             <h3>Resolved Cases</h3>
             <p className="stat-number stat-resolved">{stats.disposedCases}</p>
-          </div>
+          </Link>
+
+          {stats.urgentCases > 0 && (
+            <Link 
+              to="/cases?status=urgent" 
+              className="stat-card-new urgent stat-card-link"
+            >
+              <h3>Urgent Cases</h3>
+              <p className="stat-number stat-urgent">{stats.urgentCases}</p>
+            </Link>
+          )}
         </div>
 
         <div className="filters-section-dashboard">
@@ -151,6 +194,7 @@ const Dashboard = () => {
             <option value="Property Dispute">Property Dispute</option>
             <option value="Consumer Rights">Consumer Rights</option>
             <option value="Labor Rights">Labor Rights</option>
+            <option value="Other">Other</option>
           </select>
 
           <select
@@ -170,7 +214,7 @@ const Dashboard = () => {
             onChange={(e) => handleFilterChange('event_type', e.target.value)}
             className="filter-select"
           >
-            <option value="">All Case Types</option>
+            <option value="">All Event Types</option>
             <option value="Court Hearing">Court Hearing</option>
             <option value="Counseling Session">Counseling Session</option>
             <option value="Mediation Meeting">Mediation Meeting</option>
@@ -181,6 +225,9 @@ const Dashboard = () => {
         <div className="upcoming-events-section">
           <div className="section-header">
             <h2>Upcoming Events</h2>
+            <Link to="/add-event" className="btn-primary">
+              + Add Event
+            </Link>
           </div>
 
           <div className="cases-count">
@@ -206,18 +253,23 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <div className="event-details">
-                    <h3>{event.event_title}</h3>
-                    <p className="event-meta">
-                      <span className="case-code">{event.case_code}</span>
-                      <span className="beneficiary">{event.beneficiary_name}</span>
+                    <h3>{event.event_type}</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)', fontSize: '0.95rem' }}>
+                      {event.event_title}
                     </p>
                     <p className="event-info">
-                      <span><MdLocationOn style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.location}</span>
-                      <span><MdAccessTime style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {event.event_time}</span>
+                      {event.location && <span><MdLocationOn /> {event.location}</span>}
+                      {event.event_time && <span><MdAccessTime /> {event.event_time}</span>}
                     </p>
                   </div>
-                  <div className="event-type">
-                    <span className="badge">{event.event_type}</span>
+                  <div className="event-type" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <span className="case-code" style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--primary-color)' }}>{event.case_code}</span>
+                    {event.beneficiary_name && (
+                      <span className="beneficiary-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <MdPerson style={{ fontSize: '0.875rem' }} />
+                        {event.beneficiary_name}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

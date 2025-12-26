@@ -1,4 +1,5 @@
 import { Event } from '../models/Event.js';
+import { Case } from '../models/Case.js';
 import { Reminder } from '../models/Reminder.js';
 import { determineReminderMethod } from '../utils/sendReminder.js';
 
@@ -8,6 +9,13 @@ export const createEvent = async (req, res) => {
     const eventData = { ...req.body, case_id: id };
 
     const newEvent = await Event.create(eventData);
+    
+    // If case is 'active', set it to 'pending' when an event is created
+    const caseData = await Case.findById(id);
+    if (caseData && caseData.status === 'active') {
+      await Case.update(id, { status: 'pending' });
+    }
+    
     res.status(201).json({ 
       message: 'Event created successfully',
       event: newEvent 
@@ -67,6 +75,16 @@ export const updateEvent = async (req, res) => {
       return res.status(404).json({ error: 'Event not found' });
     }
 
+    // Check if all events for this case are resolved (completed or cancelled)
+    const hasScheduled = await Event.hasScheduledEvents(updatedEvent.case_id);
+    if (!hasScheduled) {
+      // All events are resolved, set case back to 'active' if it's 'pending'
+      const caseData = await Case.findById(updatedEvent.case_id);
+      if (caseData && caseData.status === 'pending') {
+        await Case.update(updatedEvent.case_id, { status: 'active' });
+      }
+    }
+
     res.json({ 
       message: 'Event updated successfully',
       event: updatedEvent 
@@ -85,6 +103,16 @@ export const deleteEvent = async (req, res) => {
     
     if (!deletedEvent) {
       return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if all events for this case are resolved (completed or cancelled)
+    const hasScheduled = await Event.hasScheduledEvents(deletedEvent.case_id);
+    if (!hasScheduled) {
+      // All events are resolved, set case back to 'active' if it's 'pending'
+      const caseData = await Case.findById(deletedEvent.case_id);
+      if (caseData && caseData.status === 'pending') {
+        await Case.update(deletedEvent.case_id, { status: 'active' });
+      }
     }
 
     res.json({ 

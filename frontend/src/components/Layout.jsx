@@ -1,79 +1,112 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDriveAuth } from '../hooks/useDriveAuth';
-import { MdDashboard, MdFolder, MdPeople, MdLink, MdCheckCircle, MdLogout } from 'react-icons/md';
+import { MdDashboard, MdFolder, MdPeople, MdLink, MdCheckCircle, MdLogout, MdArrowDropDown } from 'react-icons/md';
 
-const Sidebar = () => {
+const TopNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { isConnected, connectGoogleDrive, disconnectGoogleDrive } = useDriveAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const isActive = (path) => location.pathname.startsWith(path);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+    setDropdownOpen(false);
   };
 
+  const handleConnectDrive = () => {
+    connectGoogleDrive();
+    setDropdownOpen(false);
+  };
+
+  const handleDisconnectDrive = () => {
+    disconnectGoogleDrive();
+    setDropdownOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="brand-icon">P</div>
-        <div className="brand-text">
-          <div className="brand-title">PACE Foundation</div>
-          <div className="brand-subtitle">Case Management</div>
+    <nav className="top-nav">
+      <div className="top-nav-container">
+        <div className="top-nav-left">
+          <span className="brand-text">PACE Foundation</span>
         </div>
-      </div>
 
-      <nav className="nav-group">
-        <NavLink to="/dashboard" className={({isActive: active}) => `nav-item ${active ? 'active' : ''}`}>
-          <span className="nav-icon"><MdDashboard /></span>
-          <span>Dashboard</span>
-        </NavLink>
-        <NavLink to="/cases" className={({isActive: active}) => `nav-item ${active || isActive('/cases') ? 'active' : ''}`}>
-          <span className="nav-icon"><MdFolder /></span>
-          <span>All Cases</span>
-        </NavLink>
-        <NavLink to="/beneficiaries" className={({isActive: active}) => `nav-item ${active ? 'active' : ''}`}>
-          <span className="nav-icon"><MdPeople /></span>
-          <span>Beneficiaries</span>
-        </NavLink>
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="footer-links">
-          {!isConnected && (
-            <button 
-              className="footer-btn" 
-              type="button"
-              onClick={connectGoogleDrive}
-            >
-              <MdLink /> Connect Drive
-            </button>
-          )}
-          {isConnected && (
-            <button 
-              className="footer-btn" 
-              type="button"
-              onClick={disconnectGoogleDrive}
-            >
-              <MdCheckCircle /> Drive Connected
-            </button>
-          )}
-          <button className="footer-btn" type="button" onClick={handleLogout}>
-            <MdLogout /> Logout
-          </button>
+        <div className="top-nav-center">
+          <NavLink to="/dashboard" className={({isActive: active}) => `nav-tab ${active ? 'active' : ''}`}>
+            <MdDashboard className="nav-tab-icon" />
+            <span>Dashboard</span>
+          </NavLink>
+          <NavLink to="/cases" className={({isActive: active}) => `nav-tab ${active || isActive('/cases') ? 'active' : ''}`}>
+            <MdFolder className="nav-tab-icon" />
+            <span>All Cases</span>
+          </NavLink>
+          <NavLink to="/beneficiaries" className={({isActive: active}) => `nav-tab ${active ? 'active' : ''}`}>
+            <MdPeople className="nav-tab-icon" />
+            <span>Beneficiaries</span>
+          </NavLink>
         </div>
-        <div className="user-card">
-          <div className="avatar">{user?.name?.charAt(0) || 'U'}</div>
-          <div>
-            <div className="user-name">{user?.name || 'User'}</div>
-            <div className="user-email">{user?.email || 'user@pace.org'}</div>
+
+        <div className="top-nav-right">
+          <div className="admin-dropdown" ref={dropdownRef}>
+            <button 
+              className="admin-avatar-btn"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              aria-label="Admin menu"
+            >
+              <div className="admin-avatar">{user?.name?.charAt(0) || 'A'}</div>
+              <MdArrowDropDown className={`dropdown-arrow ${dropdownOpen ? 'open' : ''}`} />
+            </button>
+            {dropdownOpen && (
+              <div className="admin-dropdown-menu">
+                {!isConnected ? (
+                  <button 
+                    className="dropdown-item" 
+                    type="button"
+                    onClick={handleConnectDrive}
+                  >
+                    <MdLink /> Connect Drive
+                  </button>
+                ) : (
+                  <button 
+                    className="dropdown-item" 
+                    type="button"
+                    onClick={handleDisconnectDrive}
+                  >
+                    <MdCheckCircle /> Drive Connected
+                  </button>
+                )}
+                <button 
+                  className="dropdown-item" 
+                  type="button" 
+                  onClick={handleLogout}
+                >
+                  <MdLogout /> Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
-    </aside>
+    </nav>
   );
 };
 
@@ -113,7 +146,7 @@ const Layout = () => {
 
   return (
     <div className="app-shell">
-      <Sidebar />
+      <TopNav />
       <main className="content">
         <Outlet />
       </main>

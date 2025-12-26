@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { documentAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdDescription } from 'react-icons/md';
 
 const DocumentUpload = ({ caseId, driveToken, onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
@@ -77,8 +78,9 @@ const DocumentUpload = ({ caseId, driveToken, onUploadSuccess }) => {
             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
           />
           {file && (
-            <div className="file-preview">
-              <span>📄 {file.name}</span>
+            <div className="file-preview" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MdDescription style={{ fontSize: '1.2rem' }} />
+              <span>{file.name}</span>
               <span className="file-size">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
             </div>
           )}

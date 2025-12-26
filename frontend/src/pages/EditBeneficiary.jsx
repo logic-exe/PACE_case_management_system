@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { beneficiaryAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
+import { MdPerson, MdPhone } from 'react-icons/md';
 
 const EditBeneficiary = () => {
   const { beneficiaryId } = useParams();
@@ -103,7 +104,7 @@ const EditBeneficiary = () => {
       <form onSubmit={handleSubmit} className="case-form-new">
         <div className="form-section-card">
           <div className="section-header-icon">
-            <span className="icon">👤</span>
+            <span className="icon"><MdPerson /></span>
             <h2>Personal Information</h2>
           </div>
 
@@ -171,7 +172,7 @@ const EditBeneficiary = () => {
 
         <div className="form-section-card">
           <div className="section-header-icon">
-            <span className="icon">📱</span>
+            <span className="icon"><MdPhone /></span>
             <h2>Communication Preferences</h2>
           </div>
 

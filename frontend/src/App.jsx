@@ -8,6 +8,7 @@ import AllCases from './pages/AllCases';
 import CaseDetails from './pages/CaseDetails';
 import Beneficiaries from './pages/Beneficiaries';
 import NewCase from './pages/NewCase';
+import EditCase from './pages/EditCase';
 import AddEvent from './pages/AddEvent';
 import EditEvent from './pages/EditEvent';
 import EditBeneficiary from './pages/EditBeneficiary';
@@ -27,6 +28,7 @@ function App() {
             <Route path="/cases/:id" element={<CaseDetails />} />
             <Route path="/beneficiaries" element={<Beneficiaries />} />
             <Route path="/new-case" element={<NewCase />} />
+            <Route path="/edit-case/:id" element={<EditCase />} />
             <Route path="/add-event" element={<AddEvent />} />
             <Route path="/edit-event/:eventId" element={<EditEvent />} />
             <Route path="/edit-beneficiary/:beneficiaryId" element={<EditBeneficiary />} />

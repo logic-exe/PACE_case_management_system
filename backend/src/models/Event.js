@@ -87,5 +87,15 @@ export const Event = {
     const query = 'DELETE FROM case_events WHERE id = $1 RETURNING *';
     const result = await pool.query(query, [id]);
     return result.rows[0];
+  },
+
+  async hasScheduledEvents(caseId) {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM case_events
+      WHERE case_id = $1 AND event_status = 'scheduled'
+    `;
+    const result = await pool.query(query, [caseId]);
+    return parseInt(result.rows[0].count) > 0;
   }
 };

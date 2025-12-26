@@ -40,19 +40,37 @@ app.get('/api/health', (req, res) => {
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
     const totalCasesQuery = 'SELECT COUNT(*) FROM cases';
+    const activeCasesQuery = "SELECT COUNT(*) FROM cases WHERE status = 'active'";
     const ongoingCasesQuery = "SELECT COUNT(*) FROM cases WHERE status IN ('active', 'pending')";
     const disposedCasesQuery = "SELECT COUNT(*) FROM cases WHERE status = 'resolved'";
+    const urgentCasesQuery = "SELECT COUNT(*) FROM cases WHERE status = 'urgent'";
+    // Pending cases: cases with status 'pending' OR cases with at least one scheduled event
+    const pendingCasesQuery = `
+      SELECT COUNT(DISTINCT c.id) 
+      FROM cases c
+      WHERE c.status = 'pending' 
+      OR EXISTS (
+        SELECT 1 FROM case_events e 
+        WHERE e.case_id = c.id AND e.event_status = 'scheduled'
+      )
+    `;
     
-    const [totalResult, ongoingResult, disposedResult] = await Promise.all([
+    const [totalResult, activeResult, ongoingResult, disposedResult, urgentResult, pendingResult] = await Promise.all([
       pool.query(totalCasesQuery),
+      pool.query(activeCasesQuery),
       pool.query(ongoingCasesQuery),
-      pool.query(disposedCasesQuery)
+      pool.query(disposedCasesQuery),
+      pool.query(urgentCasesQuery),
+      pool.query(pendingCasesQuery)
     ]);
 
     res.json({
       totalCases: parseInt(totalResult.rows[0].count),
+      activeCases: parseInt(activeResult.rows[0].count),
       ongoingCases: parseInt(ongoingResult.rows[0].count),
-      disposedCases: parseInt(disposedResult.rows[0].count)
+      disposedCases: parseInt(disposedResult.rows[0].count),
+      urgentCases: parseInt(urgentResult.rows[0].count),
+      pendingCases: parseInt(pendingResult.rows[0].count)
     });
   } catch (error) {
     console.error('Dashboard stats error:', error);

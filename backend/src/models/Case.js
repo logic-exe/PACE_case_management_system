@@ -28,7 +28,7 @@ export const Case = {
   async findById(id) {
     const query = `
       SELECT c.*, b.name as beneficiary_name, b.contact_number, b.email as beneficiary_email,
-             b.has_smartphone, b.can_read
+             b.address as beneficiary_address, b.has_smartphone, b.can_read
       FROM cases c
       LEFT JOIN beneficiaries b ON c.beneficiary_id = b.id
       WHERE c.id = $1
@@ -275,5 +275,11 @@ export const Case = {
     const lastNumber = parseInt(lastCode.split('-')[2]);
     const newNumber = (lastNumber + 1).toString().padStart(3, '0');
     return `PACE-${year}-${newNumber}`;
+  },
+
+  async getTotalCount() {
+    const query = 'SELECT COUNT(*) as count FROM cases';
+    const result = await pool.query(query);
+    return parseInt(result.rows[0].count);
   }
 };

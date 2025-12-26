@@ -59,7 +59,6 @@ const Login = () => {
       <div className="login-box">
         <div className="login-header">
           <h1>PACE Foundation</h1>
-          <p>Legal Case Management System</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -89,18 +88,11 @@ const Login = () => {
             {errors.password && <span className="error-message">{errors.password}</span>}
           </div>
 
-          <div className="forgot-password">
-            <a href="#">Forgot password?</a>
-          </div>
-
           <button type="submit" className="btn-login" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
 
-        <div className="login-footer">
-          <p>© 2024 PACE Foundation. All rights reserved.</p>
-        </div>
       </div>
     </div>
   );

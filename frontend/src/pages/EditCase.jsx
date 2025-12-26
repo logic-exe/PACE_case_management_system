@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { beneficiaryAPI, caseAPI, documentAPI } from '../services/apiService';
-import { useDriveAuth } from '../hooks/useDriveAuth';
+import { useParams, useNavigate } from 'react-router-dom';
+import { caseAPI, beneficiaryAPI } from '../services/apiService';
 import toast from 'react-hot-toast';
-import { MdPerson, MdGavel, MdPhone, MdAttachFile, MdLink, MdCheckCircle, MdClose } from 'react-icons/md';
+import { MdPerson, MdGavel, MdPhone } from 'react-icons/md';
 
-const NewCase = () => {
+const EditCase = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [createDriveFolder, setCreateDriveFolder] = useState(true);
-  const { driveToken, isConnected, connectGoogleDrive } = useDriveAuth();
+  const [loading, setLoading] = useState(true);
+  const [caseData, setCaseData] = useState(null);
   const [formData, setFormData] = useState({
     beneficiary_name: '',
     contact_number: '',
@@ -27,22 +25,63 @@ const NewCase = () => {
     court_other: '',
     organizations: [],
     case_notes: '',
-    google_drive_url: ''
+    status: 'active'
   });
 
   useEffect(() => {
-    const prefillData = sessionStorage.getItem('prefillBeneficiaryData');
-    if (prefillData) {
-      try {
-        const beneficiaryData = JSON.parse(prefillData);
-        setFormData(prev => ({ ...prev, ...beneficiaryData }));
-        sessionStorage.removeItem('prefillBeneficiaryData');
-        toast.success(`Form pre-filled with ${beneficiaryData.beneficiary_name}'s information`);
-      } catch (error) {
-        console.error('Error parsing prefill data:', error);
-      }
+    fetchCaseDetails();
+  }, [id]);
+
+  const fetchCaseDetails = async () => {
+    try {
+      const response = await caseAPI.getById(id);
+      const caseInfo = response.data.case;
+      setCaseData(caseInfo);
+      
+      // Pre-fill form with case data
+      // Backend returns beneficiary fields as flat structure: beneficiary_name, contact_number, beneficiary_email, beneficiary_address, etc.
+      // Also check if beneficiary object exists (for compatibility)
+      const beneficiaryName = caseInfo.beneficiary_name || caseInfo.beneficiary?.name || '';
+      const contactNumber = caseInfo.contact_number || caseInfo.beneficiary?.contact_number || '';
+      const email = caseInfo.beneficiary_email || caseInfo.beneficiary?.email || '';
+      const address = caseInfo.beneficiary_address || caseInfo.beneficiary?.address || '';
+      const hasSmartphone = caseInfo.has_smartphone !== undefined ? caseInfo.has_smartphone : (caseInfo.beneficiary?.has_smartphone || false);
+      const canRead = caseInfo.can_read !== undefined ? caseInfo.can_read : (caseInfo.beneficiary?.can_read || false);
+      
+      // Check if case_type, case_resolution_type, or court is "Other" and needs to be in _other field
+      const standardCaseTypes = ['Domestic Violence', 'Child Custody', 'Property Dispute', 'Consumer Rights', 'Labor Rights', 'Sexual Harassment', 'Dowry Harassment'];
+      const standardResolutionTypes = ['Litigation', 'Mediation', 'Arbitration', 'Legal Aid', 'Counseling'];
+      const standardCourts = ['District Court Delhi', 'High Court Delhi', 'Family Court', 'Consumer Court', 'Sessions Court'];
+      
+      const caseType = caseInfo.case_type || '';
+      const resolutionType = caseInfo.case_resolution_type || '';
+      const court = caseInfo.court || '';
+      
+      setFormData({
+        beneficiary_name: beneficiaryName,
+        contact_number: contactNumber,
+        email: email,
+        address: address,
+        has_smartphone: hasSmartphone ? 'yes' : 'no',
+        can_read: canRead ? 'yes' : 'no',
+        case_type: standardCaseTypes.includes(caseType) ? caseType : (caseType ? 'Other' : ''),
+        case_type_other: standardCaseTypes.includes(caseType) ? '' : caseType,
+        case_title: caseInfo.case_title || '',
+        case_resolution_type: standardResolutionTypes.includes(resolutionType) ? resolutionType : (resolutionType ? 'Other' : ''),
+        case_resolution_type_other: standardResolutionTypes.includes(resolutionType) ? '' : resolutionType,
+        court: standardCourts.includes(court) ? court : (court ? 'Other' : ''),
+        court_other: standardCourts.includes(court) ? '' : court,
+        organizations: Array.isArray(caseInfo.organizations) ? caseInfo.organizations : [],
+        case_notes: caseInfo.notes || '',
+        status: caseInfo.status || 'active'
+      });
+    } catch (error) {
+      toast.error('Failed to load case details');
+      navigate('/cases');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -64,21 +103,6 @@ const NewCase = () => {
     }));
   };
 
-  const handleFileDrop = (e) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    setUploadedFiles(prev => [...prev, ...files]);
-  };
-
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    setUploadedFiles(prev => [...prev, ...files]);
-  };
-
-  const removeFile = (index) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.beneficiary_name || !formData.contact_number || !formData.case_type || !formData.case_title) {
@@ -91,112 +115,82 @@ const NewCase = () => {
     }
     setLoading(true);
     try {
-      let beneficiaryId;
-      const existingBeneficiaryRes = await beneficiaryAPI.findByNameAndPhone(
-        formData.beneficiary_name,
-        formData.contact_number
-      );
-      if (existingBeneficiaryRes.data.exists) {
-        beneficiaryId = existingBeneficiaryRes.data.beneficiary.id;
-        toast.success(`Found existing beneficiary: ${formData.beneficiary_name}. Adding case to their profile.`);
-      } else {
-        const beneficiaryData = {
+      // Update beneficiary if beneficiary_id exists
+      const beneficiaryId = caseData.beneficiary_id || caseData.beneficiary?.id;
+      if (beneficiaryId) {
+        const beneficiaryUpdateData = {
           name: formData.beneficiary_name,
           contact_number: formData.contact_number,
           email: formData.email,
           address: formData.address,
           has_smartphone: formData.has_smartphone === 'yes',
           can_read: formData.can_read === 'yes',
-          date_of_filing: new Date().toISOString().split('T')[0]
+          date_of_filing: caseData.beneficiary?.date_of_filing || caseData.date_of_filing || new Date().toISOString().split('T')[0]
         };
-        const beneficiaryRes = await beneficiaryAPI.create(beneficiaryData);
-        beneficiaryId = beneficiaryRes.data.beneficiary.id;
+        await beneficiaryAPI.update(beneficiaryId, beneficiaryUpdateData);
       }
-      const caseData = {
-        beneficiary_id: beneficiaryId,
+      
+      // Update case
+      const caseUpdateData = {
         case_type: formData.case_type === 'Other' ? formData.case_type_other : formData.case_type,
         case_title: formData.case_title,
         case_resolution_type: formData.case_resolution_type === 'Other' ? formData.case_resolution_type_other : formData.case_resolution_type,
         court: formData.court === 'Other' ? formData.court_other : formData.court,
         organizations: formData.organizations,
-        status: 'active',
-        notes: formData.case_notes,
-        createDriveFolder: createDriveFolder && isConnected
+        status: formData.status,
+        notes: formData.case_notes
       };
-      const caseRes = await caseAPI.create(caseData, driveToken);
-      const newCaseId = caseRes.data.case.id;
-      const driveFolder = caseRes.data.driveFolder;
-      if (uploadedFiles.length > 0) {
-        if (!isConnected || !driveToken) {
-          toast.error('Google Drive not connected. Documents cannot be uploaded.');
-          toast.success('Case created successfully, but documents were not uploaded.');
-        } else if (!driveFolder?.created) {
-          const errorMsg = driveFolder?.error || 'Unknown error creating folder';
-          toast.error(`Case folder creation failed: ${errorMsg}. Documents cannot be uploaded.`);
-          toast.success('Case created successfully, but documents were not uploaded.');
-        } else {
-          let uploadCount = 0;
-          let failCount = 0;
-          for (const file of uploadedFiles) {
-            try {
-              const formData = new FormData();
-              formData.append('file', file);
-              formData.append('category', 'other');
-              formData.append('fileName', file.name);
-              await documentAPI.upload(newCaseId, formData, driveToken);
-              uploadCount++;
-            } catch (error) {
-              console.error(`Failed to upload ${file.name}:`, error);
-              failCount++;
-            }
-          }
-          if (uploadCount > 0) {
-            toast.success(`Case created successfully! ${uploadCount} document(s) uploaded.`);
-          }
-          if (failCount > 0) {
-            toast.error(`${failCount} document(s) failed to upload.`);
-          }
-          if (uploadCount === 0 && failCount > 0) {
-            toast.error('Case created but all document uploads failed.');
-          }
-        }
-      } else {
-        if (driveFolder?.created) {
-          toast.success('Case created successfully with Google Drive folder!');
-        } else if (driveFolder?.error && createDriveFolder) {
-          toast.success('Case created successfully, but Google Drive folder creation failed.');
-        } else {
-          toast.success('Case created successfully!');
-        }
-      }
+      
+      await caseAPI.update(id, caseUpdateData);
+      toast.success('Case updated successfully');
       
       // Dispatch custom event to notify other pages to refresh
       window.dispatchEvent(new CustomEvent('caseUpdated', { 
-        detail: { caseId: newCaseId, created: true } 
+        detail: { caseId: id, updated: true } 
       }));
       
-      navigate('/cases');
+      navigate(`/cases/${id}`);
     } catch (error) {
       if (error.response?.data?.error) {
-        toast.error(`Failed to create case: ${error.response.data.error}`);
+        toast.error(`Failed to update case: ${error.response.data.error}`);
       } else {
-        toast.error(error.response?.data?.error || error.message || 'Failed to create case');
+        toast.error(error.response?.data?.error || error.message || 'Failed to update case');
       }
     } finally {
       setLoading(false);
     }
   };
 
+  if (loading && !caseData) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading case details...</p>
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return (
+      <div className="page-container">
+        <div className="empty-state">
+          <p>Case not found</p>
+          <button onClick={() => navigate('/cases')} className="btn-primary">Go Back</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="page-container">
         <div className="page-header-with-back">
-          <button onClick={() => navigate(-1)} className="btn-back">
+          <button onClick={() => navigate(`/cases/${id}`)} className="btn-back">
             ← Back
           </button>
           <div>
-            <h1>Create New Case</h1>
-            <p>Fill in the case details to create a new record in the system</p>
+            <h1>Edit Case</h1>
+            <p>Update case details</p>
           </div>
         </div>
 
@@ -402,6 +396,33 @@ const NewCase = () => {
                 />
               </div>
             )}
+
+            <div className="form-group">
+              <label htmlFor="status">Status</label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="resolved">Resolved</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="case_notes">Case Notes</label>
+              <textarea
+                id="case_notes"
+                name="case_notes"
+                value={formData.case_notes}
+                onChange={handleInputChange}
+                rows="4"
+                placeholder="Additional notes about the case..."
+              />
+            </div>
           </div>
 
           <div className="form-section-card">
@@ -445,84 +466,12 @@ const NewCase = () => {
             </div>
           </div>
 
-          <div className="form-section-card">
-            <div className="section-header-icon">
-              <span className="icon"><MdAttachFile /></span>
-              <h2>Initial Documents</h2>
-            </div>
-            <div
-              className="file-drop-zone"
-              onDrop={handleFileDrop}
-              onDragOver={(e) => e.preventDefault()}
-              onClick={() => document.getElementById('file-input').click()}
-            >
-              <input
-                type="file"
-                id="file-input"
-                multiple
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-              <div className="drop-icon" style={{ fontSize: '3rem', color: 'var(--text-light)' }}>
-                <MdAttachFile style={{ fontSize: '3rem' }} />
-              </div>
-              <p className="drop-text">Drag & Drop Files Here</p>
-              <p className="drop-subtext">or click to browse</p>
-            </div>
-            {uploadedFiles.length > 0 && (
-              <div className="uploaded-files-list">
-                {uploadedFiles.map((file, index) => (
-                  <div key={index} className="file-item">
-                    <span className="file-name icon-with-text"><MdAttachFile /> {file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      className="file-remove"
-                    >
-                      <MdClose />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="form-group" style={{ marginTop: 'var(--spacing-xl)' }}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={createDriveFolder}
-                  onChange={(e) => setCreateDriveFolder(e.target.checked)}
-                  disabled={!isConnected}
-                />
-                <span>Auto-create Google Drive folder for this case</span>
-              </label>
-              {!isConnected && (
-                <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                  <button 
-                    type="button"
-                    onClick={connectGoogleDrive}
-                    className="btn-connect-drive"
-                  >
-                    <MdLink /> Connect Google Drive
-                  </button>
-                </div>
-              )}
-              {isConnected && (
-                <p className="success-text">
-                  <MdCheckCircle /> Google Drive connected
-                </p>
-              )}
-            </div>
-          </div>
-
           <div className="form-actions-new">
-            <button type="button" onClick={() => navigate('/cases')} className="btn-cancel">
+            <button type="button" onClick={() => navigate(`/cases/${id}`)} className="btn-cancel">
               Cancel
             </button>
-            <button type="button" className="btn-draft">
-              Save as Draft
-            </button>
             <button type="submit" className="btn-create" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Case'}
+              {loading ? 'Updating...' : 'Update Case'}
             </button>
           </div>
         </form>
@@ -531,4 +480,5 @@ const NewCase = () => {
   );
 };
 
-export default NewCase;
+export default EditCase;
+
